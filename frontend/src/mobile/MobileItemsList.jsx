@@ -217,7 +217,10 @@ export default function CategoryItems() {
         `}
       </style>
 
-      {/* LOGIN MODAL OVERLAY */}
+      <div style={styles.pageOuter}>
+      <div style={styles.appContainer}>
+
+      {/* LOGIN MODAL OVERLAY - confined to the frame, not the whole browser window */}
       {showLogin && (
         <div style={styles.overlay}>
           <div style={styles.loginBox}>
@@ -249,7 +252,6 @@ export default function CategoryItems() {
         </div>
       )}
 
-      <div style={styles.appContainer}>
         <div style={styles.fixedHeader}>
           <div style={styles.headerTop}>
             <div style={styles.searchRow}>
@@ -340,13 +342,22 @@ export default function CategoryItems() {
         </div>
         
       </div>
+      </div>
     </>
   );
 }
 
 const styles = {
-  appContainer: { backgroundColor: "#ffffff", minHeight: "50vh", color: "#fff", paddingTop: "100px", paddingBottom: "65px", boxSizing: "border-box", position: "relative" },
-  fixedHeader: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", flexDirection: "column", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" },
+  // Outer page background - centers the phone-shaped frame on any screen
+  // width (small phone, large phone, tablet, or desktop browser), instead
+  // of letting the layout stretch or reflow differently per device.
+  pageOuter: { backgroundColor: "#e9edf3", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "flex-start" },
+
+  // Fixed-width frame - every device sees exactly this width; on wider
+  // screens it's just centered with empty space on either side rather
+  // than stretching the content.
+  appContainer: { backgroundColor: "#ffffff", width: "100%", maxWidth: "430px", height: "100vh", color: "#fff", boxSizing: "border-box", position: "relative", overflow: "hidden", boxShadow: "0 0 30px rgba(0,0,0,0.15)" },
+  fixedHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", flexDirection: "column", boxShadow: "0 2px 5px rgba(0,0,0,0.1)" },
   headerTop: { display: "flex", alignItems: "center", padding: "40px 15px", gap: "22px", height: "55px", backgroundColor: "#8ec5fc",  boxSizing: "border-box" },
   
   searchRow: { display: "flex", alignItems: "center", flex: 1, gap: "10px" },
@@ -359,14 +370,14 @@ const styles = {
   backBtnBlack: {margin:"0 0 10px 0", position: "absolute", left: "25px", border: "none", background: "none", color: "#ffffff", fontSize: "30px", fontWeight: "bold", cursor: "pointer", padding: 0 },
   categoryTitle: { margin: 0, fontSize: "15px", fontWeight: "bold", letterSpacing: "0.5px" ,color: "#fffafa" },
   mainWrapper: { display: "flex", width: "100%" },
-  sidebar: { width: "85px", position: "fixed", top: "118px", bottom: "65px", backgroundColor: "#add5fd", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "15px", overflowY: "auto", borderRight: "1px solid #ffffff" },
+  sidebar: { width: "85px", position: "absolute", top: "118px", bottom: "65px", backgroundColor: "#add5fd", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "15px", overflowY: "auto", borderRight: "1px solid #ffffff" },
   sideItem: { marginBottom: "20px", textAlign: "center", cursor: "pointer" },
   catCircle: { width: "55px", height: "55px", borderRadius: "50%", backgroundColor: "#030303", marginBottom: "5px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   catImage: { width: "100%", height: "100%", objectFit: "cover" },
   catPlaceholder: { width: "100%", height: "100%", backgroundColor: "#555" },
   catLabel: { fontSize: "12px", color: "#000000" },
-  scrollArea: { flex: 1, padding: "12px", boxSizing: "border-box" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "12px" },
+  scrollArea: { flex: 1, padding: "12px", boxSizing: "border-box", marginTop: "100px", height: "calc(100vh - 100px - 65px)", overflowY: "auto" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" },
   card: { backgroundColor:"#ffffff", padding: "10px", borderRadius: "12px", margin:"15px 0px 0px 0px", display: "flex", flexDirection: "column", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" },
   imgWrapper: { width: "100%", height: "120px", marginBottom: "10px", overflow: "hidden", borderRadius: "8px", backgroundColor: "#333" },
   image: { width: "100%", height: "100%", objectFit: "cover" },
@@ -379,14 +390,14 @@ const styles = {
   btn: { border: "none", background: "none", color: "#fff", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
   qty: { fontSize: "13px", fontWeight: "bold", color: "#fff" },
   statusText: { textAlign: "center", padding: "20px", color: "#888" },
-  fixedBottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1000 },
+  fixedBottomNav: { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 1000 },
 
   // Added Modal Styles
-  overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 },
+  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 },
   loginBox: { background: "white", padding: "20px", borderRadius: "12px", width: "90%", position: "relative" },
   closeBtn: { position: "absolute", top: "10px", right: "10px", border: "none", background: "none", fontSize: "24px", cursor: "pointer", color: "#333", zIndex: 10 },
   
-  voiceOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.6)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s ease" },
+  voiceOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.6)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s ease" },
   voiceModal: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: "24px", borderTopRightRadius: "24px", padding: "30px 20px 50px 20px", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", boxShadow: "0 -4px 15px rgba(0,0,0,0.2)" },
   closeModalBtn: { position: "absolute", top: "15px", right: "20px", background: "none", border: "none", fontSize: "20px", color: "#666", cursor: "pointer", padding: "5px" },
   voiceTitle: { margin: "0 0 15px 0", fontSize: "18px", fontWeight: "bold", color: "#333" },

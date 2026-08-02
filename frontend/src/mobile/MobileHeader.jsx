@@ -217,7 +217,7 @@ export default function MobileHeader({
 const styles = {
   fixedHeader: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", flexDirection: "column", backgroundColor: "#8ec5fc" },
   headerTop: { display: "flex", alignItems: "stretch", gap: "5px", backgroundColor: " #8ec5fc", boxSizing: "border-box", padding: "12px 0" },
-  logo: { margin: 0, padding: "12px 26px", fontSize: "23px", color: "#fff", cursor: "pointer", flexShrink: 0, fontWeight: "bold", display: "flex", alignItems: "center" },
+  logo: { margin: 0, padding: "12px 26px", fontSize: "24px", color: "#fff", cursor: "pointer", flexShrink: 0, fontWeight: "bold", display: "flex", alignItems: "center" },
   locationSlot: { flex: 1, display: "flex", alignItems: "center", minWidth: 0, paddingRight: "10px" },
   searchIconWrapper: { paddingLeft: "12px", display: "flex", alignItems: "center", justifyContent: "center" },
 

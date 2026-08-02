@@ -50,7 +50,7 @@ const styles = {
     overflow: "hidden", 
     position: "relative", 
     background: " #8ec5fc ", // Premium gradient background
-    padding: "15px 0 25px 0",
+    padding: "10px 0 5px 0",
     boxSizing: "border-box"
   },
   track: { 
@@ -61,8 +61,8 @@ const styles = {
   },
   slide: { 
     minWidth: "100%", 
-    height: "110%", 
-    padding: "10px 29px", // Adds padding so the image doesn't touch screen edges
+    height: "100%", 
+    padding: "10px 20px", // Adds padding so the image doesn't touch screen edges
     boxSizing: "border-box",
     display: "flex",          
     justifyContent: "center", 
