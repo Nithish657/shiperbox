@@ -1,21 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const nodemailer = require("nodemailer");
+const axios = require("axios");
 const rateLimit = require("express-rate-limit");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: process.env.EMAIL_PORT || 587,
-  secure: false,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 // Rate limiting: Maximum 5 OTP requests every 15 minutes per IP
 const otpLimiter = rateLimit({
@@ -59,23 +48,37 @@ router.post("/send-otp", otpLimiter, async (req, res) => {
   console.log(`\n🔑 [NEW LOGIN] Email: ${email} | OTP: ${dummyOtp}\n`);
 
   try {
-    await transporter.sendMail({
-      from: `"ShiperBox" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Your ShiperBox Login OTP",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-          <h2>Welcome to ShiperBox</h2>
-          <p>Your one-time password (OTP) for login is:</p>
-          <h1 style="color: #2874f0; letter-spacing: 5px;">${dummyOtp}</h1>
-          <p>This OTP is valid for the next 10 minutes.</p>
-        </div>
-      `,
-    });
+    // Sent via Brevo's HTTP API instead of raw SMTP (nodemailer) - Render's
+    // free tier silently hangs/blocks outbound SMTP connections on port 587,
+    // which left every OTP request stuck pending forever with no error.
+    // A normal HTTPS call like this works fine on Render.
+    await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: { name: "ShiperBox", email: process.env.EMAIL_USER },
+        to: [{ email }],
+        subject: "Your ShiperBox Login OTP",
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+            <h2>Welcome to ShiperBox</h2>
+            <p>Your one-time password (OTP) for login is:</p>
+            <h1 style="color: #2874f0; letter-spacing: 5px;">${dummyOtp}</h1>
+            <p>This OTP is valid for the next 10 minutes.</p>
+          </div>
+        `,
+      },
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+      }
+    );
 
     return res.json({ success: true, message: "OTP sent to email successfully" });
   } catch (error) {
-    console.error("❌ OTP Sending failed:", error.message);
+    console.error("❌ OTP Sending failed:", error.response?.data || error.message);
     return res.status(500).json({ success: false, message: "Failed to send OTP. Please try again." });
   }
 });
