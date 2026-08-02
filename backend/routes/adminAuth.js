@@ -3,20 +3,10 @@ const router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const axios = require("axios");
 const rateLimit = require("express-rate-limit");
 const db = require("../db");
 require("dotenv").config();
-
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: process.env.EMAIL_PORT || 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 // Any number of admin accounts can exist in the `admins` table (id, email,
 // password, role) and each logs in with their OWN email + password.
@@ -104,22 +94,36 @@ router.post("/login", loginLimiter, async (req, res) => {
     console.log(`\n🔑 [ADMIN LOGIN OTP] Login attempt by: ${adminRow.email} | OTP sent to main admin\n`);
 
     try {
-      await transporter.sendMail({
-        from: `"Way2Win Admin" <${process.env.EMAIL_USER}>`,
-        to: MAIN_ADMIN_EMAIL, // always this ONE constant address, never adminRow.email or req.body
-        subject: "Admin Login OTP",
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-            <h2>Admin Login Verification</h2>
-            <p>An admin login attempt was made using the account: <strong>${adminRow.email}</strong></p>
-            <p>Your one-time password (OTP) is:</p>
-            <h1 style="color: #2874f0; letter-spacing: 5px;">${otp}</h1>
-            <p>This code is valid for the next 10 minutes. If this wasn't expected, you can safely ignore this email.</p>
-          </div>
-        `,
-      });
+      // Sent via Brevo's HTTP API instead of raw SMTP (nodemailer) - Render's
+      // free tier silently hangs/blocks outbound SMTP connections on port 587,
+      // which left this request stuck pending forever with no error.
+      // A normal HTTPS call like this works fine on Render.
+      await axios.post(
+        "https://api.brevo.com/v3/smtp/email",
+        {
+          sender: { name: "ShiperBox Admin", email: process.env.EMAIL_USER },
+          to: [{ email: MAIN_ADMIN_EMAIL, name: "Admin" }], // always this ONE constant address, never adminRow.email or req.body
+          subject: "Admin Login OTP",
+          htmlContent: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+              <h2>Admin Login Verification</h2>
+              <p>An admin login attempt was made using the account: <strong>${adminRow.email}</strong></p>
+              <p>Your one-time password (OTP) is:</p>
+              <h1 style="color: #2874f0; letter-spacing: 5px;">${otp}</h1>
+              <p>This code is valid for the next 10 minutes. If this wasn't expected, you can safely ignore this email.</p>
+            </div>
+          `,
+        },
+        {
+          headers: {
+            "api-key": process.env.BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+        }
+      );
     } catch (emailErr) {
-      console.error("Admin OTP email failed:", emailErr.message);
+      console.error("Admin OTP email failed:", emailErr.response?.data || emailErr.message);
       delete pendingAdminOtps[adminRow.id];
       return res.status(500).json({ success: false, message: "Failed to send OTP email. Please try again." });
     }
