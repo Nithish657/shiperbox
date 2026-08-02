@@ -8,7 +8,7 @@ const currentHost = window.location.hostname;
 
 // 🌟 THE MAGIC SWITCH 🌟
 export const API_URL = isProduction 
-  ? "https://way2win-backend.onrender.com" // Used when live on Render
+  ? "https://shiperbox.onrender.com" // Used when live on Render
   : `http://${currentHost}:5000`;          // Used when testing locally
 
 const api = axios.create({
