@@ -97,6 +97,20 @@ export default function AdminGarlandReview() {
                   </div>
                   <p style={styles.row}><strong>Customer:</strong> {req.user_id}</p>
                   <p style={styles.row}><strong>Needed by:</strong> {formatDate(req.needed_by)}</p>
+                  <hr style={{ margin: "10px 0", border: "0.5px solid #eee" }} />
+                  <p style={styles.row}><strong>Name:</strong> {req.name || "—"}</p>
+                  <p style={styles.row}><strong>Email:</strong> {req.email || "—"}</p>
+                  <p style={styles.row}><strong>Phone Number:</strong> {req.phone_number ? `+91 ${req.phone_number}` : "—"}</p>
+                  <p style={styles.row}><strong>Whatsapp Number:</strong> {req.alt_phone_num ? `+91 ${req.alt_phone_num}` : "—"}</p>
+                  <hr style={{ margin: "10px 0", border: "0.5px solid #eee" }} />
+                  <p style={styles.row}><strong>Delivery Address:</strong></p>
+                  <p style={styles.address}>
+                    {[req.building_name, req.street, req.landmark, req.city_or_village, req.state]
+                      .filter(Boolean)
+                      .join(", ")}
+                    {req.pin_code ? ` - ${req.pin_code}` : ""}
+                    {![req.building_name, req.street, req.landmark, req.city_or_village, req.state, req.pin_code].some(Boolean) && "—"}
+                  </p>
                   {req.notes && <p style={styles.notes}>Notes: {req.notes}</p>}
 
                   {req.approval_status === "pending" && (
@@ -143,6 +157,7 @@ const styles = {
   cardBody: { padding: "14px" },
   badge: { display: "inline-block", padding: "3px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", textTransform: "capitalize", marginBottom: "10px" },
   row: { fontSize: "14px", margin: "6px 0", color: "#333" },
+  address: { fontSize: "13px", margin: "4px 0 6px", color: "#444", lineHeight: "1.5" },
   notes: { fontSize: "13px", color: "#666", marginTop: "8px", fontStyle: "italic", background: "#f9f9f9", padding: "8px", borderRadius: "4px" },
   actions: { display: "flex", gap: "10px", marginTop: "14px" },
   approveBtn: { flex: 1, padding: "10px", border: "none", borderRadius: "8px", background: "#0c831f", color: "#fff", fontWeight: "bold", cursor: "pointer" },

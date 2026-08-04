@@ -11,9 +11,9 @@ router.get("/", async (req, res) => {
 
   // Fetch ALL items into memory to perform a fuzzy search across the catalog
   const sql = `
-    SELECT id, name, price, image, quantity AS unit, 'vegetables' AS category FROM vegetables 
+    SELECT id, name, price, image, quantity AS unit, stock, 'vegetables' AS category FROM vegetables 
     UNION
-    SELECT id, name, price, image, quantity AS unit, 'flowers' AS category FROM flowers
+    SELECT id, name, price, image, quantity AS unit, stock, 'flowers' AS category FROM flowers
   `;
 
   try {

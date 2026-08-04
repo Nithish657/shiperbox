@@ -3,13 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_URL } from "../api";
 import { getImageUrl } from "../utils/imageUrl";
+import MobileHeader from "../mobile/MobileHeader";
+
+const MIN_ORDER_VALUE = 799;
 
 const BLINKIT_GREEN = "#0c831f";
-const GRADIENT = "linear-gradient(135deg, #4a90f5 0%, #2563eb 100%)";
-
-// --- Delivery & Handling Fee Constants (Change these values as needed) ---
-const DELIVERY_FEE = 25;
-const HANDLING_CHARGE = 10;
 
 export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
   const navigate = useNavigate();
@@ -21,13 +19,12 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
 
   // Search State
   const [search, setSearch] = useState("");
-
-  // --- Voice Search States ---
-  const [showVoiceModal, setShowVoiceModal] = useState(false);
-  const [transcript, setTranscript] = useState("Listening...");
-  const [isListening, setIsListening] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(112);
 
   const [step, setStep] = useState(1); 
+  
+  // Create a ref for the scrollable area so we can force it to the top
+  const contentAreaRef = useRef(null);
   
   const [contact, setContact] = useState({
     fullName: "",
@@ -38,17 +35,19 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
     landmark: "",
     city: "",
     postalCode: "",
+    deliveryDate: "",
+    deliverySlot: "",
   });
+
+  const DELIVERY_SLOTS = ["9:00 AM - 12:00 PM", "12:00 PM - 3:00 PM", "3:00 PM - 6:00 PM", "6:00 PM - 9:00 PM"];
+  const todayISO = new Date().toISOString().split("T")[0];
   
   const [error, setError] = useState("");
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(true);
   
-  // Location and Address Tracking States
   const [locating, setLocating] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null); 
-  
-  // Fetch ALL saved addresses for the user
   const [myAddresses, setMyAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
 
@@ -87,7 +86,8 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
           acc[key] = acc[key] ? { ...acc[key], quantity: acc[key].quantity + Number(item.quantity) } : { ...item };
           return acc;
         }, {});
-        const processed = Object.values(grouped);
+        
+        const processed = Object.values(grouped).reverse();
         setCartItems(processed);
         
         setTotal(processed.reduce((acc, item) => acc + Number(item.price) * Number(item.quantity), 0));
@@ -182,68 +182,6 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
     );
   };
 
-  const handleVoiceSearch = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert("Your browser does not support voice search.");
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = true; 
-    recognition.maxAlternatives = 1;
-
-    setShowVoiceModal(true);
-    setTranscript("Listening...");
-    setIsListening(true);
-
-    recognition.onresult = (event) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-        else interimTranscript += event.results[i][0].transcript;
-      }
-      const displayText = finalTranscript || interimTranscript;
-      setTranscript(displayText);
-      if (finalTranscript) {
-        const cleanText = finalTranscript.replace(/\.$/, "").trim();
-        setIsListening(false);
-        setSearch(cleanText);
-        setTimeout(() => {
-          setShowVoiceModal(false);
-          navigate(`/search?q=${encodeURIComponent(cleanText)}`);
-        }, 600);
-      }
-    };
-    recognition.onerror = () => {
-      setTranscript("Microphone error. Please try again.");
-      setIsListening(false);
-      setTimeout(() => setShowVoiceModal(false), 2500);
-    };
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
-  };
-
-  const closeVoiceModal = () => {
-    setShowVoiceModal(false);
-    setIsListening(false);
-  };
-
-  const SearchIcon = ({ size = 16, color = "#333" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16" y2="16" />
-      <circle cx="8.5" cy="8.5" r="1.8" fill={color} stroke="none" />
-    </svg>
-  );
-
-  const MicIcon = ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="7.5" y="1" width="9" height="14" rx="4.5" fill=" #79bcff" />
-      <circle cx="12" cy="6" r="1.5" fill="#333" />
-      <path d="M7.5 9.5 L12 12 L16.5 9.5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <path d="M5 11v2a7 7 0 0 0 14 0v-2M12 20v3M8 23h8" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  );
-
   const TrashIcon = ({ size = 18, color = "#e53935" }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 6h18" />
@@ -273,12 +211,42 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
     onCartChange?.();
   };
 
+  // Force scroll to top when opening the checkout form
+  const hasOutOfStockItem = cartItems.some((item) => Number(item.stock) <= 0);
+
+  const isBelowMinOrder = (cartItems.length > 0 ? total : 0) < MIN_ORDER_VALUE;
+  const amountToReachMin = MIN_ORDER_VALUE - total;
+
   const handlePlaceOrderClick = () => {
     if (cartItems.length === 0) return;
+    if (hasOutOfStockItem) {
+      setError("Please remove out of stock items from your cart before proceeding.");
+      return;
+    }
+    if (isBelowMinOrder) {
+      setError(`Minimum order value is ₹${MIN_ORDER_VALUE}. Add ₹${amountToReachMin.toFixed(0)} more to place your order.`);
+      return;
+    }
     setStep(2);
+    setTimeout(() => {
+      if (contentAreaRef.current) contentAreaRef.current.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }, 10);
   };
 
-  // Grand Total Calculation
+  // Force scroll to top when clicking the back arrow from the checkout form
+  const handleBackClick = () => {
+    if (step === 2) {
+      setStep(1);
+      setTimeout(() => {
+        if (contentAreaRef.current) contentAreaRef.current.scrollTop = 0;
+        window.scrollTo(0, 0);
+      }, 10);
+    } else {
+      if (onBack) onBack();
+    }
+  };
+
   const grandTotal = cartItems.length > 0 ? total : 0;
 
   const handleCheckout = async () => {
@@ -287,6 +255,14 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
       !contact.building || !contact.street || !contact.city || !contact.postalCode
     ) {
       setError("Please fill all fields. Both phone numbers must be exactly 10 digits.");
+      return;
+    }
+    if (!contact.deliveryDate || !contact.deliverySlot) {
+      setError("Please choose a delivery date and time slot.");
+      return;
+    }
+    if (grandTotal < MIN_ORDER_VALUE) {
+      setError(`Minimum order value is ₹${MIN_ORDER_VALUE}. Please go back and add more items.`);
       return;
     }
 
@@ -320,23 +296,31 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
 
   const totalItemCount = cartItems.reduce((acc, item) => acc + Number(item.quantity), 0);
 
-  // --- ORDER SUCCESS VIEW ---
+  const getCartItem = (productId) => {
+    return cartItems.find(c => c.product_id === productId || c.id === productId);
+  };
+
   if (orderSuccess) {
     return (
       <div style={styles.container}>
-        <div style={{ ...styles.fixedHeader }}>
-          <div style={styles.headerBottom}>
-            <button style={styles.backBtn} onClick={onBack}>&#8592;</button>
-            <h3 style={styles.categoryTitle}>ORDER SUCCESS</h3>
-            <div style={{ width: "24px" }}></div>
-          </div>
-        </div>
+        <MobileHeader
+          showLogo={false}
+          showTitleBar
+          showBackButton
+          onBack={onBack}
+          title="ORDER SUCCESS"
+          onHeightChange={setHeaderHeight}
+        />
         
-        {/* NEW SUCCESS WRAPPER FOR PERFECT CENTERING */}
-        <div style={styles.successWrapper}>
+        <div style={{ ...styles.successWrapper, paddingTop: `${headerHeight}px` }}>
           <div style={styles.successIcon}>✓</div>
           <h2>Order Placed Successfully!</h2>
-          <p style={{ color: "#666", margin: "10px 0 20px" }}>We have received your order.</p>
+          <p style={{ color: "#666", margin: "10px 0 10px" }}>We have received your order.</p>
+          {contact.deliveryDate && contact.deliverySlot && (
+            <p style={{ color: "#333", fontWeight: "600", margin: "0 0 20px" }}>
+              Scheduled for {new Date(`${contact.deliveryDate}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}, {contact.deliverySlot}
+            </p>
+          )}
           <button style={{ ...styles.checkoutBtn, backgroundColor: BLINKIT_GREEN }} onClick={onBack}>
             Back to Home
           </button>
@@ -345,71 +329,61 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
     );
   }
 
-  // --- MAIN VIEW (CART / CHECKOUT) ---
   return (
-    <>
-      <style>
-        {`
-          @keyframes pulseGlow {
-            0% { box-shadow: 0 0 0 0 rgba(40, 116, 240, 0.4); }
-            70% { box-shadow: 0 0 0 20px rgba(40, 116, 240, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(40, 116, 240, 0); }
-          }
-        `}
-      </style>
+    <div style={styles.container}>
+      <MobileHeader
+        searchValue={search}
+        setSearchValue={setSearch}
+        onSearch={goSearch}
+        showLogo={false}
+        showTitleBar
+        showBackButton
+        onBack={handleBackClick}
+        title={step === 2 ? "DELIVERY DETAILS" : "MY CART"}
+        isLoggedIn={user_id && user_id !== "guest"}
+        onHeightChange={setHeaderHeight}
+      />
 
-      {showVoiceModal && (
-        <div style={styles.voiceOverlay} onClick={closeVoiceModal}>
-          <div style={styles.voiceModal} onClick={(e) => e.stopPropagation()}>
-            <button style={styles.closeModalBtn} onClick={closeVoiceModal}>✕</button>
-            <h3 style={styles.voiceTitle}>{isListening ? "Speak now" : "Processing"}</h3>
-            <p style={{ ...styles.voiceTranscript, color: transcript === "Listening..." ? "#888" : "#222" }}>
-              {transcript}
-            </p>
-            <div style={{
-              ...styles.bigMicContainer,
-              animation: isListening ? "pulseGlow 1.5s infinite" : "none",
-              backgroundColor: isListening ? BLINKIT_GREEN : "#ccc"
-            }}>
-              <MicIcon size={34} standColor={isListening ? "#fff" : "#555"} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={styles.container}>
-        <div style={styles.fixedHeader}>
-          <div style={styles.headerTop}>
-            <div style={styles.searchRow}>
-              <div style={styles.searchBox}>
-                <div style={styles.searchIconWrapper}><SearchIcon size={16} /></div>
-                <input type="text" placeholder="Search..." style={styles.searchInputNav} value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && goSearch()} />
+      <div 
+        ref={contentAreaRef} 
+        style={{ ...styles.contentArea, paddingTop: `${headerHeight + 15}px` }}
+      >
+        {step === 2 ? (
+          <>
+            <div style={styles.noteCard}>
+              <h3 style={styles.noteTitle}>ℹ️ Important Order Info</h3>
+              <p style={styles.noteText}>
+                Once your order is confirmed, our team will contact you directly via WhatsApp to finalize your bill. 
+                Please note that standard delivery and handling charges are applicable.
+              </p>
+              <p style={styles.noteText}>
+                For your security and trust, all payments are securely processed only after our team shares the full details with you.
+              </p>
+              <div style={styles.noteContactBox}>
+                <span style={styles.noteContactLabel}>Support Contact:</span>
+                <span style={styles.noteContactNumber}>📞 6301912803</span>
               </div>
-              <button style={styles.micBtn} onClick={handleVoiceSearch}><MicIcon size={20} standColor="#fff" /></button>
             </div>
-          </div>
 
-          <div style={styles.headerBottom}>
-            <button style={styles.backBtn} onClick={step === 2 ? () => setStep(1) : onBack}>&#8592;</button>
-            <h3 style={styles.categoryTitle}>{step === 2 ? "DELIVERY DETAILS" : "MY CART"}</h3>
-            <div style={{ width: "24px" }}></div>
-          </div>
-        </div>
-
-        <div style={styles.contentArea}>
-          {step === 2 ? (
             <div style={styles.formContainer}>
+              {/* NEW INSTRUCTION BANNER */}
+              <div style={styles.instructionBanner}>
+                <p style={styles.instructionText}>
+                  👉 <b>Note:</b> Please fill in your correct details below and click on <b>Confirm Order</b> to submit your request.
+                </p>
+              </div>
+
               <h3 style={styles.sectionTitle}>Contact Info</h3>
               <input type="text" name="fullName" value={contact.fullName} onChange={handleContactChange} placeholder="Full Name *" style={styles.input} />
 
               <div style={{ display: "flex", gap: "6px" }}>
                 <div style={styles.phoneInputWrapper}>
                   <span style={styles.prefix}>+91</span>
-                  <input type="tel" name="phone" value={contact.phone} onChange={handleContactChange} placeholder="Phone *" maxLength="10" style={styles.phoneInput} />
+                  <input type="tel" name="phone" value={contact.phone} onChange={handleContactChange} placeholder="Phone Number*" maxLength="10" style={styles.phoneInput} />
                 </div>
                 <div style={styles.phoneInputWrapper}>
                   <span style={styles.prefix}>+91</span>
-                  <input type="tel" name="altPhone" value={contact.altPhone} onChange={handleContactChange} placeholder="Alt Phone *" maxLength="10" style={styles.phoneInput} />
+                  <input type="tel" name="altPhone" value={contact.altPhone} onChange={handleContactChange} placeholder="Whatsapp Number *" maxLength="10" style={styles.phoneInput} />
                 </div>
               </div>
 
@@ -426,6 +400,29 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
               <div style={{ display: "flex", gap: "6px" }}>
                 <input type="text" name="city" value={contact.city} onChange={handleContactChange} placeholder="Village / City *" style={{ ...styles.input, flex: 1 }} />
                 <input type="text" name="postalCode" value={contact.postalCode} onChange={handleContactChange} placeholder="Pincode *" style={{ ...styles.input, flex: 1 }} />
+              </div>
+
+              <h3 style={styles.sectionTitle}>Delivery Date & Time</h3>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                  type="date"
+                  name="deliveryDate"
+                  value={contact.deliveryDate}
+                  min={todayISO}
+                  onChange={handleContactChange}
+                  style={{ ...styles.input, flex: 1 }}
+                />
+                <select
+                  name="deliverySlot"
+                  value={contact.deliverySlot}
+                  onChange={handleContactChange}
+                  style={{ ...styles.input, flex: 1 }}
+                >
+                  <option value="">Select Time Slot *</option>
+                  {DELIVERY_SLOTS.map((slot) => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
               </div>
 
               {(addressesLoading || myAddresses.length > 0) && (
@@ -478,16 +475,20 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
 
               {error && <p style={styles.errorText}>{error}</p>}
             </div>
-          ) : (
-          <>
-          {cartItems.map((item) => (
-            <div key={item.id} style={styles.itemCard}>
-              <img src={getImageUrl(item.image)} style={styles.itemImg} alt={item.name} />
+          </>
+        ) : (
+        <>
+        {cartItems.map((item) => {
+          const outOfStock = Number(item.stock) <= 0;
+          return (
+            <div key={item.id} style={{ ...styles.itemCard, opacity: outOfStock ? 0.65 : 1 }}>
+              <img src={getImageUrl(item.image)} style={outOfStock ? { ...styles.itemImg, filter: "grayscale(1)" } : styles.itemImg} alt={item.name} />
               <div style={styles.itemInfo}>
                 <div style={styles.itemHeader}>
                   <div style={{ flex: 1, paddingRight: "10px" }}>
                     <h4 style={styles.itemTitle}>{item.name}</h4>
                     <p style={styles.itemWeight}>{item.unit || "1 kg"}</p>
+                    {outOfStock && <p style={styles.outOfStockText}>Out of Stock</p>}
                   </div>
                   <button style={styles.trashBtn} onClick={() => removeItem(item.id)}><TrashIcon size={18} /></button>
                 </div>
@@ -496,111 +497,219 @@ export default function MobileCart({ user_id, refresh, onCartChange, onBack }) {
                   <div style={styles.qtyBox}>
                     <button style={styles.qtyBtn} onClick={() => updateQty(item.id, "decrease", item.quantity)}>-</button>
                     <span style={styles.qtyText}>{item.quantity}</span>
-                    <button style={styles.qtyBtn} onClick={() => updateQty(item.id, "increase", item.quantity)}>+</button>
+                    <button style={styles.qtyBtn} onClick={() => updateQty(item.id, "increase", item.quantity)} disabled={outOfStock}>+</button>
                   </div>
                 </div>
               </div>
             </div>
-          ))}
-
-          {cartItems.length > 0 && (
-            <div style={styles.billContainer}>
-              <h4 style={styles.sectionTitle}>Bill Details</h4>
-              <div style={styles.row}>
-                <p style={styles.billLabel}>Item Total</p>
-                <p style={styles.billValue}>₹{total}</p>
-              </div>
-              <div style={styles.row}>
-                <p style={styles.billLabel}>Delivery Fee</p>
-                <p style={styles.billValue}>₹ --</p>
-              </div>
-              <div style={styles.row}>
-                <p style={styles.billLabel}>Handling Charge</p>
-                <p style={styles.billValue}>₹ --</p>
-              </div>
-              <hr style={styles.divider} />
-              <div style={styles.row}>
-                <p style={styles.grandTotalLabel}>Grand Total</p>
-                <p style={styles.grandTotalValue}>₹{grandTotal}</p>
-              </div>
-            </div>
-          )}
-
-          {recommendations.length > 0 && (
-            <div style={{ margin: "25px 0" }}>
-              <h4 style={styles.sectionTitle}>You might also like</h4>
-              <div style={{ position: "relative" }}>
-                {showArr1.left && <button style={{ ...styles.arrow, left: 0 }} onClick={() => scroll(scrollRef1, "left")}>&lt;</button>}
-                <div style={styles.horizontalScroll} ref={scrollRef1} onScroll={() => checkScroll(scrollRef1, setShowArr1)}>{row1.map((item) => (
-                  <div key={item.id} style={styles.scrollItem}>
-                    <img src={getImageUrl(item.image)} style={styles.gridImg} alt={item.name} />
-                    <p style={styles.gridTitle}>{item.name}</p>
-                    <div style={styles.gridDetailsRow}>
-                      <p style={styles.gridUnit}>{item.unit || "1 kg"}</p>
-                      <p style={styles.gridPrice}>₹{item.price}</p>
-                    </div>
-                    <button style={styles.addBtn} onClick={() => addToCart(item)}>ADD</button>
-                  </div>
-                ))}</div>
-                {showArr1.right && <button style={{ ...styles.arrow, right: 0 }} onClick={() => scroll(scrollRef1, "right")}>&gt;</button>}
-              </div>
-              <div style={{ position: "relative", marginTop: "12px" }}>
-                {showArr2.left && <button style={{ ...styles.arrow, left: 0 }} onClick={() => scroll(scrollRef2, "left")}>&lt;</button>}
-                <div style={styles.horizontalScroll} ref={scrollRef2} onScroll={() => checkScroll(scrollRef2, setShowArr2)}>{row2.map((item) => (
-                  <div key={item.id} style={styles.scrollItem}>
-                    <img src={getImageUrl(item.image)} style={styles.gridImg} alt={item.name} />
-                    <p style={styles.gridTitle}>{item.name}</p>
-                    <div style={styles.gridDetailsRow}>
-                      <p style={styles.gridUnit}>{item.unit || "1 kg"}</p>
-                      <p style={styles.gridPrice}>₹{item.price}</p>
-                    </div>
-                    <button style={styles.addBtn} onClick={() => addToCart(item)}>ADD</button>
-                  </div>
-                ))}</div>
-                {showArr2.right && <button style={{ ...styles.arrow, right: 0 }} onClick={() => scroll(scrollRef2, "right")}>&gt;</button>}
-              </div>
-            </div>
-          )}
-          </>
-          )}
-        </div>
+          );
+        })}
 
         {cartItems.length > 0 && (
-          <div style={styles.footer}>
-            <div style={styles.footerTotalBox}>
-              <p style={styles.footerTotalSub}>Total Items: {totalItemCount}</p>
-              <p style={styles.totalLabel}>₹{grandTotal}</p>
+          <div style={styles.billContainer}>
+            <h4 style={styles.sectionTitle}>Bill Details</h4>
+            <div style={styles.row}>
+              <p style={styles.billLabel}>Item Total</p>
+              <p style={styles.billValue}>₹{total}</p>
             </div>
-            {step === 1 ? (
-              <button style={styles.checkoutBtn} onClick={handlePlaceOrderClick}>Proceed to Checkout</button>
-            ) : (
-              <button style={{ ...styles.checkoutBtn, opacity: checkingOut ? 0.6 : 1 }} onClick={handleCheckout} disabled={checkingOut}>
-                {checkingOut ? "Placing..." : "Confirm Order"}
-              </button>
-            )}
+            <div style={styles.row}>
+              <p style={styles.billLabel}>Delivery Fee</p>
+              <p style={styles.billValue}>₹ --</p>
+            </div>
+            <div style={styles.row}>
+              <p style={styles.billLabel}>Handling Charge</p>
+              <p style={styles.billValue}>₹ --</p>
+            </div>
+            <hr style={styles.divider} />
+            <div style={styles.row}>
+              <p style={styles.grandTotalLabel}>Grand Total</p>
+              <p style={styles.grandTotalValue}>₹{grandTotal}</p>
+            </div>
           </div>
         )}
+        {error && step === 1 && <p style={styles.errorText}>{error}</p>}
+
+        {recommendations.length > 0 && (
+          <div style={{ margin: "25px 0" }}>
+            <h4 style={styles.sectionTitle}>You might also like</h4>
+            
+            <div style={{ position: "relative" }}>
+              {showArr1.left && <button style={{ ...styles.arrow, left: 0 }} onClick={() => scroll(scrollRef1, "left")}>&lt;</button>}
+              <div style={styles.horizontalScroll} ref={scrollRef1} onScroll={() => checkScroll(scrollRef1, setShowArr1)}>
+                {row1.map((item) => {
+                  const cartItem = getCartItem(item.id);
+                  return (
+                    <div key={item.id} style={styles.scrollItem}>
+                      <img src={getImageUrl(item.image)} style={styles.gridImg} alt={item.name} />
+                      <p style={styles.gridTitle}>{item.name}</p>
+                      <span style={styles.gridUnit}>{item.unit || "1 kg"}</span>
+                      
+                      <div style={styles.priceRow}>
+                        <p style={styles.price}>₹{item.price}</p>
+                        {cartItem && cartItem.quantity > 0 ? (
+                          <div style={styles.recQtyBox}>
+                            <button style={styles.recBtn} onClick={() => updateQty(cartItem.id, "decrease", cartItem.quantity)}>−</button>
+                            <span style={styles.recQty}>{cartItem.quantity}</span>
+                            <button style={styles.recBtn} onClick={() => updateQty(cartItem.id, "increase", cartItem.quantity)}>+</button>
+                          </div>
+                        ) : (
+                          <button style={styles.addBtn} onClick={() => addToCart(item)}>ADD</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {showArr1.right && <button style={{ ...styles.arrow, right: 0 }} onClick={() => scroll(scrollRef1, "right")}>&gt;</button>}
+            </div>
+
+            <div style={{ position: "relative", marginTop: "12px" }}>
+              {showArr2.left && <button style={{ ...styles.arrow, left: 0 }} onClick={() => scroll(scrollRef2, "left")}>&lt;</button>}
+              <div style={styles.horizontalScroll} ref={scrollRef2} onScroll={() => checkScroll(scrollRef2, setShowArr2)}>
+                {row2.map((item) => {
+                  const cartItem = getCartItem(item.id);
+                  return (
+                    <div key={item.id} style={styles.scrollItem}>
+                      <img src={getImageUrl(item.image)} style={styles.gridImg} alt={item.name} />
+                      <p style={styles.gridTitle}>{item.name}</p>
+                      <span style={styles.gridUnit}>{item.unit || "1 kg"}</span>
+                      
+                      <div style={styles.priceRow}>
+                        <p style={styles.price}>₹{item.price}</p>
+                        {cartItem && cartItem.quantity > 0 ? (
+                          <div style={styles.recQtyBox}>
+                            <button style={styles.recBtn} onClick={() => updateQty(cartItem.id, "decrease", cartItem.quantity)}>−</button>
+                            <span style={styles.recQty}>{cartItem.quantity}</span>
+                            <button style={styles.recBtn} onClick={() => updateQty(cartItem.id, "increase", cartItem.quantity)}>+</button>
+                          </div>
+                        ) : (
+                          <button style={styles.addBtn} onClick={() => addToCart(item)}>ADD</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {showArr2.right && <button style={{ ...styles.arrow, right: 0 }} onClick={() => scroll(scrollRef2, "right")}>&gt;</button>}
+            </div>
+
+          </div>
+        )}
+        </>
+        )}
       </div>
-    </>
+
+      {cartItems.length > 0 && (
+        <div style={styles.footer}>
+          {step === 1 && isBelowMinOrder && (
+            <p style={{ color: "#e53935", fontSize: "12px", margin: "0 0 6px 0", width: "100%" }}>
+              Add ₹{amountToReachMin.toFixed(0)} more to reach the ₹{MIN_ORDER_VALUE} minimum order value.
+            </p>
+          )}
+          <div style={styles.footerTotalBox}>
+            <p style={styles.footerTotalSub}>Total Items: {totalItemCount}</p>
+            <p style={styles.totalLabel}>₹{grandTotal}</p>
+          </div>
+          {step === 1 ? (
+            <button
+              style={{ ...styles.checkoutBtn, opacity: isBelowMinOrder ? 0.6 : 1, cursor: isBelowMinOrder ? "not-allowed" : "pointer" }}
+              onClick={handlePlaceOrderClick}
+              disabled={isBelowMinOrder}
+            >
+              Proceed to Checkout
+            </button>
+          ) : (
+            <button style={{ ...styles.checkoutBtn, opacity: checkingOut ? 0.6 : 1 }} onClick={handleCheckout} disabled={checkingOut}>
+              {checkingOut ? "Placing..." : "Confirm Order"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
 const styles = {
-  page: { backgroundColor: "#f5f6f8", minHeight: "100vh" }, 
-  fixedHeader: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", flexDirection: "column", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" },
-  headerTop: { display: "flex", alignItems: "center", padding: "10px 15px", gap: "22px", height: "60px", backgroundColor: "#8ec5fc", boxSizing: "border-box" },
-  searchRow: { display: "flex", alignItems: "center", flex: 1, gap: "8px" },
-  searchBox: { flex: 1, height: "36px", display: "flex", alignItems: "center", backgroundColor: "#ffffff", borderRadius: "10px", overflow: "hidden" },
-  searchIconWrapper: { paddingLeft: "12px", display: "flex", alignItems: "center", justifyContent: "center" },
-  searchInputNav: { flex: 1, border: "none", padding: "0 10px", outline: "none", fontSize: "13px", background: "transparent", color: "black" },
-  micBtn: { width: "36px", height: "36px", border: "none", borderRadius: "50%", backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 },
-  headerBottom: { display: "flex", alignItems: "center", justifyContent: "space-between", height: "45px", padding: "0 20px", backgroundColor:  "#8ec5fc",  color: "#ffffff", borderBottom: "1px solid #eee", boxSizing: "border-box" },
-  backBtn: { background: "none", border: "none", fontSize: "24px", fontWeight: "bold", cursor: "pointer", padding: 0, margin: 0, color: "#ffffff" },
-  categoryTitle: { margin: 0, fontSize: "16px", fontWeight: "800", textAlign: "center", flex: 1, letterSpacing: "0.5px" },
-
-  container: { display: "flex", flexDirection: "column", flex: 1, padding: "0 0 180px 0", backgroundColor: "#f5f6f8", minHeight: "50vh", boxSizing: "border-box" },
-  contentArea: { flex: 1, padding: "125px 16px 16px 16px" }, 
+  // 1. PIN THE OUTER CONTAINER
+  container: { 
+    backgroundColor: "#f5f6f8", 
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0, 
+    overflow: "hidden", 
+    display: "flex", 
+    flexDirection: "column" 
+  },
   
+  // 2. LOCK THE CONTENT AREA
+  contentArea: { 
+    flex: 1, 
+    width: "100%",
+    height: "100%",
+    padding: "0 16px 120px 16px", 
+    overflowY: "auto", 
+    WebkitOverflowScrolling: "touch",
+    boxSizing: "border-box" 
+  }, 
+  
+  noteCard: {
+    backgroundColor: "#eef2ff",
+    border: "1px solid #c7d2fe",
+    borderRadius: "12px",
+    padding: "16px",
+    marginBottom: "16px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+  },
+  noteTitle: {
+    margin: "0 0 8px 0",
+    fontSize: "14px",
+    fontWeight: "800",
+    color: "#1e40af",
+    display: "flex",
+    alignItems: "center"
+  },
+  noteText: {
+    margin: "0 0 10px 0",
+    fontSize: "13px",
+    color: "#334155",
+    lineHeight: "1.5"
+  },
+  noteContactBox: {
+    backgroundColor: "#dbeafe",
+    borderRadius: "8px",
+    padding: "10px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    border: "1px solid #bfdbfe"
+  },
+  noteContactLabel: {
+    fontSize: "12px",
+    color: "#1e40af",
+    fontWeight: "600"
+  },
+  noteContactNumber: {
+    fontSize: "14px",
+    fontWeight: "800",
+    color: "#1d4ed8"
+  },
+
+  instructionBanner: {
+    backgroundColor: "#fffbeb",
+    borderLeft: "4px solid #f59e0b",
+    padding: "12px 14px",
+    marginBottom: "16px",
+    borderRadius: "6px"
+  },
+  instructionText: {
+    margin: 0,
+    fontSize: "13px",
+    color: "#b45309",
+    lineHeight: "1.5"
+  },
+
   successWrapper: { display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", flex: 1, minHeight: "calc(100vh - 100px)", padding: "20px", textAlign: "center", backgroundColor: "#f5f6f8" },
 
   itemCard: { display: "flex", padding: "10px", background: "#ffffff", marginBottom: "14px", borderRadius: "16px", boxShadow: "0 4px 15px rgba(0,0,0,0.03)", alignItems: "center", position: "relative" },
@@ -609,9 +718,11 @@ const styles = {
   itemHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
   itemTitle: { fontSize: "15px", margin: 0, fontWeight: "600", color: "#222", lineHeight: "1.4", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
   itemWeight: { fontSize: "13px", color: "#777", margin: "4px 0 0 0", fontWeight: "500" },
+  outOfStockText: { fontSize: "11px", fontWeight: "bold", color: "#e53935", margin: "4px 0 0 0" },
   trashBtn: { background: "#fff2f2", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#e53935", flexShrink: 0 },
   itemBottom: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px" },
   priceText: { fontSize: "16px", fontWeight: "800", color: "#333", margin: 0 },
+  
   qtyBox: { display: "flex", alignItems: "center", background: "#f8f8f8", borderRadius: "10px", padding: "4px", border: "1px solid #eee" },
   qtyBtn: { width: "30px", height: "30px", border: "none", background: "#fff", color: "#8ec5fc", fontWeight: "bold", fontSize: "18px", borderRadius: "8px", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center" },
   qtyText: { margin: "0 14px", fontSize: "15px", fontWeight: "700", color: "#333" },
@@ -649,29 +760,91 @@ const styles = {
   horizontalScroll: { display: "flex", overflowX: "auto", gap: "12px", paddingBottom: "10px", scrollbarWidth: "none" },
   scrollItem: { minWidth: "125px", maxWidth: "125px", backgroundColor: "#ffffff", padding: "12px", borderRadius: "16px", textAlign: "center", border: "1px solid #eee", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" },
   gridImg: { width: "100%", height: "80px", objectFit: "contain", borderRadius: "10px" },
-  gridTitle: { fontSize: "13px", margin: "10px 0", fontWeight: "600", color: "#444", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   
-  // --- New Grid Details Styles ---
-  gridDetailsRow: { display: "flex", justifyContent: "space-between", alignItems: "center", margin: "-6px 0 8px 0" },
-  gridUnit: { fontSize: "11px", color: "#777", margin: 0, fontWeight: "500" },
-  gridPrice: { fontSize: "13px", fontWeight: "800", color: "#333", margin: 0 },
-  // -------------------------------
+  gridTitle: { 
+    fontSize: "14px", 
+    fontWeight: "700", 
+    color: "#000", 
+    margin: "8px 0 4px 0", 
+    whiteSpace: "nowrap", 
+    overflow: "hidden", 
+    textOverflow: "ellipsis" 
+  },
+  gridUnit: { 
+    fontSize: "12px", 
+    color: "#6b7280", 
+    margin: "0 0 12px 0", 
+    fontWeight: "500", 
+    display: "block" 
+  },
+
+  priceRow: { 
+    display: "flex", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
+    marginTop: "auto" 
+  },
+  price: { 
+    fontWeight: "900", 
+    fontSize: "16px", 
+    color: "#000", 
+    margin: 0 
+  },
+
+  // 3. NORMALIZE BUTTON HEIGHTS IN RECOMMENDATIONS
+  addBtn: { 
+    padding: "0 14px", 
+    backgroundColor: "#7fb8ff", 
+    color: "#fff", 
+    border: "none", 
+    borderRadius: "8px", 
+    fontWeight: "700", 
+    fontSize: "14px", 
+    cursor: "pointer",
+    height: "30px", 
+    display: "flex", 
+    alignItems: "center", 
+    justifyContent: "center", 
+    boxSizing: "border-box" 
+  },
+
+  recQtyBox: { 
+    display: "flex", 
+    alignItems: "center", 
+    justifyContent: "center", 
+    gap: "8px", 
+    backgroundColor: "#7fb8ff", 
+    borderRadius: "8px", 
+    padding: "0 5px",
+    height: "30px", 
+    boxSizing: "border-box"
+  },
   
-  addBtn: { width: "100%", background: "#8ec5fc" , color: "#ffff", border: "none", borderRadius: "8px", padding: "8px 0", cursor: "pointer", fontSize: "13px", fontWeight: "800" },
+  recBtn: { 
+    border: "none", 
+    background: "none", 
+    color: "#fff", 
+    fontWeight: "bold", 
+    cursor: "pointer", 
+    fontSize: "16px", 
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  recQty: { 
+    fontSize: "14px", 
+    fontWeight: "700", 
+    color: "#fff", 
+    minWidth: "14px", 
+    textAlign: "center" 
+  },
+  
   arrow: { position: "absolute", top: "35%", zIndex: 10, background: "#fff", border: "1px solid #eee", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", fontWeight: "bold", color: "#555" },
   
-  footer: { position: "fixed", bottom: 60, left: 0, right: 0, padding: "16px 20px", background: "#fff", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 1000, boxShadow: "0 -4px 15px rgba(0,0,0,0.03)" },
+  footer: { position: "fixed", bottom: 60, left: 0, right: 0, padding: "16px 20px", background: "#fff", borderTop: "1px solid #eee", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", zIndex: 1000, boxShadow: "0 -4px 15px rgba(0,0,0,0.03)" },
   footerTotalBox: { display: "flex", flexDirection: "column" },
   footerTotalSub: { margin: 0, fontSize: "12px", color: "#666", fontWeight: "600" },
   totalLabel: { fontWeight: "900", fontSize: "20px", color: "#333", margin: "2px 0 0 0" },
   checkoutBtn: { background: "#8ec5fc" , color: "#fff", border: "none", padding: "14px 28px", borderRadius: "12px", fontWeight: "800", fontSize: "15px", cursor: "pointer", boxShadow: "0 4px 12px rgba(114, 127, 146, 0.3)" },
-  
-  successIcon: { width: "80px", height: "80px", borderRadius: "50%", background: "#dff8e6", color: BLINKIT_GREEN, fontSize: "40px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
-
-  voiceOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.6)", zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s ease" },
-  voiceModal: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: "24px", borderTopRightRadius: "24px", padding: "30px 20px 50px 20px", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", boxShadow: "0 -4px 15px rgba(0,0,0,0.2)" },
-  closeModalBtn: { position: "absolute", top: "15px", right: "20px", background: "none", border: "none", fontSize: "20px", color: "#666", cursor: "pointer", padding: "5px" },
-  voiceTitle: { margin: "0 0 15px 0", fontSize: "18px", fontWeight: "bold", color: "#333" },
-  voiceTranscript: { fontSize: "22px", textAlign: "center", minHeight: "60px", margin: "0 0 30px 0", display: "flex", alignItems: "center", fontStyle: "italic", maxWidth: "85%" },
-  bigMicContainer: { width: "70px", height: "70px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background-color 0.3s ease" }
 };

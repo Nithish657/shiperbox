@@ -4,6 +4,7 @@ const axios = require("axios");
 const rateLimit = require("express-rate-limit");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const db = require("../db");
 require("dotenv").config();
 
 // Rate limiting: Maximum 5 OTP requests every 15 minutes per IP
@@ -83,9 +84,10 @@ router.post("/send-otp", otpLimiter, async (req, res) => {
   }
 });
 
-router.post("/verify-otp", verifyLimiter, (req, res) => {
+router.post("/verify-otp", verifyLimiter, async (req, res) => {
   const email = normalize(req.body.email);
   const { otp } = req.body;
+  const name = (req.body.name || "").trim();
 
   if (!email || !otp) {
     return res.status(400).json({ success: false, message: "Email and OTP required" });
@@ -108,6 +110,23 @@ router.post("/verify-otp", verifyLimiter, (req, res) => {
     if (!process.env.USER_JWT_SECRET) {
       console.error("USER_JWT_SECRET is not set in .env");
       return res.status(500).json({ success: false, message: "Login is not configured" });
+    }
+
+    // Record/refresh this user in the `users` table on every successful login.
+    // Requires a UNIQUE constraint on `email` for the upsert to work - see
+    // the migration note further down if that's not set up yet.
+    try {
+      await db.query(
+        `INSERT INTO users (name, email, last_login, created_at)
+         VALUES (?, ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+           name = COALESCE(NULLIF(?, ''), name),
+           last_login = NOW()`,
+        [name || null, email, name]
+      );
+    } catch (dbErr) {
+      // Don't block login if this write fails - log it and continue issuing the token.
+      console.error("Failed to record user login:", dbErr.message);
     }
 
     // This token is what every user-data route (cart, orders, addresses,

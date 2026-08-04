@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_URL } from "../api";
 import MobileBottomNav from "../mobile/MobileBottomNav";
+import MobileHeader from "../mobile/MobileHeader";
 import useIsDesktop from "../hooks/useIsDesktop";
 
 export default function MyOrders() {
@@ -12,6 +13,12 @@ export default function MyOrders() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [headerHeight, setHeaderHeight] = useState(112);
+
+  const goSearch = () => {
+    if (search.trim() !== "") navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+  };
 
   useEffect(() => {
     if (user_id === "guest") {
@@ -61,6 +68,78 @@ export default function MyOrders() {
     return "Grocery Delivery";
   };
 
+  // --- Visual Progress Tracker Logic ---
+  const renderOrderUpdates = (order) => {
+    const type = String(order.order_type || "cart").toLowerCase().trim();
+    const s = String(order.status || order.approval_status || "pending").toLowerCase().trim();
+    
+    let steps = [];
+    let activeIndex = 0;
+    let color = "#16a34a"; // Green for success
+
+    // 1. Handle Cancellations
+    if (s.includes("reject") || s.includes("cancel") || s.includes("delete")) {
+      steps = ["Pending", "Cancelled"];
+      activeIndex = 1;
+      color = "#ef4444"; // Red for rejected
+    } 
+    // 2. Handle Grocery / Cart / Bulk Veg
+    else if (type === "cart" || type === "grocery" || type === "bulk_veg") {
+      steps = ["Pending", "Processing", "In Transit", "Delivered"];
+      if (s.includes("done") || s.includes("deliver") || s.includes("complet")) activeIndex = 3;
+      else if (s.includes("transit") || s.includes("dispatch")) activeIndex = 2;
+      else if (s.includes("approve") || s.includes("process") || s.includes("accept")) activeIndex = 1;
+      else activeIndex = 0;
+    } 
+    // 3. Handle Courier
+    else if (type === "courier") {
+      steps = ["Pending", "Approved", "Completed"];
+      if (s.includes("complet") || s.includes("done") || s.includes("deliver")) activeIndex = 2;
+      else if (s.includes("approve") || s.includes("transit") || s.includes("accept")) activeIndex = 1;
+      else activeIndex = 0;
+    }
+    // 4. Handle Custom Garland
+    else if (type === "garland") {
+      steps = ["Pending", "Approved"];
+      if (s.includes("approve") || s.includes("done") || s.includes("complet") || s.includes("accept")) activeIndex = 1;
+      else activeIndex = 0;
+    }
+
+    return (
+      <div style={{ display: "flex", alignItems: "center", marginTop: "25px", marginBottom: "15px", width: "100%", padding: "0 10px", boxSizing: "border-box" }}>
+        {steps.map((step, idx) => (
+          <React.Fragment key={step}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+              {/* Dot */}
+              <div style={{ 
+                width: "14px", height: "14px", borderRadius: "50%", 
+                background: idx <= activeIndex ? color : "#e2e8f0", 
+                zIndex: 2, transition: "background 0.3s ease" 
+              }}></div>
+              {/* Label below dot */}
+              <span style={{ 
+                position: "absolute", top: "22px", fontSize: "11px", 
+                color: idx <= activeIndex ? "#0f172a" : "#94a3b8", 
+                fontWeight: idx <= activeIndex ? "700" : "500", 
+                whiteSpace: "nowrap" 
+              }}>
+                {step}
+              </span>
+            </div>
+            {/* Connecting Line */}
+            {idx < steps.length - 1 && (
+              <div style={{ 
+                height: "3px", flex: 1, 
+                background: idx < activeIndex ? color : "#e2e8f0", 
+                margin: "0 4px", borderRadius: "2px", transition: "background 0.3s ease" 
+              }}></div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
   // --- Bulletproof Smart WhatsApp Function ---
   const openWhatsApp = (orderId) => {
     const phoneNumber = "916301912803";
@@ -80,15 +159,21 @@ export default function MyOrders() {
 
   return (
     <div style={{ ...styles.page, ...(isDesktop && styles.pageDesktop) }}>
-      <div style={isDesktop ? styles.cardDesktop : undefined}>
-        
-        {/* HEADER */}
-        <div style={{ ...styles.header, ...(isDesktop && styles.headerDesktop) }}>
-          <h2 style={styles.title}>My Orders</h2>
-        </div>
+      <MobileHeader
+        searchValue={search}
+        setSearchValue={setSearch}
+        onSearch={goSearch}
+        showLogo={false}
+        showTitleBar
+        showBackButton={false}
+        title="My Orders"
+        isLoggedIn={user_id !== "guest"}
+        onHeightChange={setHeaderHeight}
+      />
 
+      <div style={isDesktop ? styles.cardDesktop : undefined}>
         {/* CONTENT */}
-        <div style={{ ...styles.scrollArea, ...(isDesktop && styles.scrollAreaDesktop) }}>
+        <div style={{ ...styles.scrollArea, ...(isDesktop && styles.scrollAreaDesktop), paddingTop: isDesktop ? "20px" : `${headerHeight + 15}px` }}>
           {user_id === "guest" ? (
             <div style={styles.centerBox}>
               <div style={styles.emptyIcon}>📦</div>
@@ -147,6 +232,29 @@ export default function MyOrders() {
                             </div>
                           ))}
                         </div>
+                      ) : order.order_type === "garland" ? (
+                         <div style={styles.itemRow}>
+                           <div style={styles.imgBox}>
+                             {order.reference_image ? (
+                               <img src={order.reference_image.startsWith("http") ? order.reference_image : `${API_URL}/uploads/${order.reference_image}`} alt="Garland" style={styles.itemImg} />
+                             ) : (
+                               <span style={styles.imgFallback}>🌸</span>
+                             )}
+                           </div>
+                           <div style={styles.itemDetails}>
+                             <p style={styles.itemName}>Custom Garland Request</p>
+                             <p style={styles.itemQty}>{order.notes || "No additional notes"}</p>
+                           </div>
+                         </div>
+                      ) : order.order_type === "courier" ? (
+                         <div style={styles.itemRow}>
+                           <div style={styles.imgBox}><span style={styles.imgFallback}>📦</span></div>
+                           <div style={styles.itemDetails}>
+                             <p style={styles.itemName}>Courier Delivery</p>
+                             <p style={styles.itemQty}>{order.address}</p>
+                             {order.notes && <p style={styles.itemQty}>Notes: {order.notes}</p>}
+                           </div>
+                         </div>
                       ) : order.items_names ? (
                         <p style={styles.itemNamesText}>{order.items_names}</p>
                       ) : order.notes ? (
@@ -154,6 +262,10 @@ export default function MyOrders() {
                       ) : (
                         <p style={styles.itemNamesText}>Details unavailable</p>
                       )}
+
+                      {/* Add the Visual Progress Tracker right below the item info */}
+                      {renderOrderUpdates(order)}
+
                     </div>
 
                     <div style={styles.cardDivider}></div>
@@ -172,7 +284,6 @@ export default function MyOrders() {
                         </div>
                       )}
                       
-                      {/* Navigate to help/support WhatsApp */}
                       <button 
                         style={styles.reorderBtn} 
                         onClick={() => openWhatsApp(order.id)}
@@ -199,12 +310,7 @@ const styles = {
   pageDesktop: { display: "flex", justifyContent: "center", backgroundColor: "#eef1f5", padding: "40px 20px", boxSizing: "border-box" },
   cardDesktop: { width: "100%", maxWidth: "680px", background: "#fff", borderRadius: "20px", boxShadow: "0 10px 40px rgba(0,0,0,0.08)", overflow: "hidden", height: "fit-content" },
   
-  header: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", alignItems: "center", padding: "16px 20px", background: " #8ec5fc", color: "#222", gap: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" },
-  headerDesktop: { position: "static", borderRadius: "20px 20px 0 0", padding: "20px 24px", borderBottom: "1px solid #eee", boxShadow: "none" },
-  backBtnHeader: { background: "none", border: "none", fontSize: "22px", color: "#222", cursor: "pointer", display: "flex", alignItems: "center" },
-  title: { margin:"0 0 0 145px", fontSize: "20px", fontWeight: "800", color: "#ffffff" },
-  
-  scrollArea: { padding: "70px 14px 90px" },
+  scrollArea: { padding: "0 14px 90px" },
   scrollAreaDesktop: { padding: "20px", backgroundColor: "#f4f6f9" },
   
   centerBox: { textAlign: "center", padding: "50px 20px", display: "flex", flexDirection: "column", alignItems: "center" },
@@ -221,7 +327,7 @@ const styles = {
   dateText: { fontSize: "11px", color: "#64748b", fontWeight: "600" }, 
   cardDivider: { height: "1px", background: "#f1f5f9", margin: "0 14px" },
   
-  cardBody: { padding: "14px" }, 
+  cardBody: { padding: "14px", paddingBottom: "24px" }, 
   orderTypeTag: { margin: "0 0 12px 0", fontSize: "11px", color: "#94a3b8", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" },
   
   // --- Styles for Full Item List ---

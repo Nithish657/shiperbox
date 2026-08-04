@@ -11,14 +11,14 @@ const ABOUT_STORY = [
   {
     heading: "Bringing your everyday needs closer to home",
     paragraphs: [
-      "ShiperBox started with a simple observation: getting fresh vegetables, flowers for a special occasion, a custom garland made in time for a ceremony, or a package delivered across town shouldn't mean juggling five different apps, shops, and phone calls. We wanted one place that could handle all of it — reliably, quickly, and without the runaround.",
+      "Shiperbox started with a simple observation: getting fresh vegetables, flowers for a special occasion, a custom garland made in time for a ceremony, or a package delivered across town shouldn't mean juggling five different apps, shops, and phone calls. We wanted one place that could handle all of it — reliably, quickly, and without the runaround.",
       "Today, ShiperBox is a local-first platform built around the things people in our community actually need on a regular basis: fresh groceries, flowers, custom garlands for festivals and functions, and dependable courier and delivery services. We're not trying to be everything to everyone — we're trying to be genuinely useful for the handful of things that matter most in daily life.",
     ],
   },
   {
     heading: "How it started",
     paragraphs: [
-      "ShiperBox began as a small effort to solve a local problem. Vendors selling fresh vegetables and flowers had great produce but no easy way to reach customers beyond their immediate neighborhood. Customers, meanwhile, were stuck choosing between the inconvenience of visiting multiple shops or settling for less fresh options from generic delivery apps that treated groceries as an afterthought.",
+      "Shiperbox began as a small effort to solve a local problem. Vendors selling fresh vegetables and flowers had great produce but no easy way to reach customers beyond their immediate neighborhood. Customers, meanwhile, were stuck choosing between the inconvenience of visiting multiple shops or settling for less fresh options from generic delivery apps that treated groceries as an afterthought.",
       "We built ShiperBox to close that gap — to give local vendors a proper digital storefront, and to give customers a fast, honest way to get what they need without compromising on freshness or trust.",
       "From there, the platform grew naturally. Customers ordering flowers for weddings and festivals started asking for custom garlands — made to order, delivered on time, exactly as requested. So we added that. People needed small packages moved across town without waiting hours for a generalist courier service, so we built dedicated courier routes with transparent tracking. Every feature on ShiperBox exists because someone in our community actually asked for it.",
     ],
@@ -44,7 +44,7 @@ const ABOUT_STORY = [
   {
     heading: "Who we serve",
     paragraphs: [
-      "ShiperBox is built for people who want dependable, everyday services without friction — busy families ordering groceries for the week, someone arranging flowers for a last-minute occasion, a small business owner who needs a package couriered across town by afternoon, or a household preparing for a festival and needing a garland made exactly right. If that sounds like you, you're exactly who we built this for.",
+      "Shiperbox is built for people who want dependable, everyday services without friction — busy families ordering groceries for the week, someone arranging flowers for a last-minute occasion, a small business owner who needs a package couriered across town by afternoon, or a household preparing for a festival and needing a garland made exactly right. If that sounds like you, you're exactly who we built this for.",
     ],
   },
   {
@@ -323,7 +323,6 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
     return { backgroundColor: "#fff4e0", color: "#b8860b" };   
   };
 
-  // FIX: Using .includes() to catch variations like "in_transit", "dispatched", "completed" properly mapped to the right steps
   const renderOrderUpdates = (order) => {
     const type = String(order.order_type || "cart").toLowerCase().trim();
     const s = String(order.status || order.approval_status || "pending").toLowerCase().trim();
@@ -341,7 +340,6 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
     // 2. Handle Grocery / Cart / Bulk Veg
     else if (type === "cart" || type === "grocery" || type === "bulk_veg") {
       steps = ["Pending", "Processing", "In Transit", "Delivered"];
-      // Checked in reverse order so the highest achievement catches first
       if (s.includes("done") || s.includes("deliver") || s.includes("complet")) activeIndex = 3;
       else if (s.includes("transit") || s.includes("dispatch")) activeIndex = 2;
       else if (s.includes("approve") || s.includes("process") || s.includes("accept")) activeIndex = 1;
@@ -603,7 +601,7 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
             <h2 style={styles.logo} onClick={() => navigate("/home")}>ShiperBox</h2>
 
             <div style={styles.locationContainer} onClick={() => setShowLocationModal(true)} title="Change Location">
-              <div style={styles.deliveryTitle}>Delivery in 8 minutes</div>
+              <div style={styles.deliveryTitle}>Delivery to</div>
               <div style={styles.locationWrapper}>
                 <span style={styles.text}>{address}</span>
                 <span style={styles.arrowIcon}>▼</span>
@@ -837,6 +835,31 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
                                 ))}
                               </div>
                             </div>
+                          ) : order.order_type === "garland" ? (
+                            <div style={styles.orderDetailBox}>
+                               <div style={styles.orderItemRow}>
+                                  {order.reference_image ? (
+                                    <img src={order.reference_image.startsWith("http") ? order.reference_image : `${API_URL}/uploads/${order.reference_image}`} alt="Garland" style={styles.orderItemImage} />
+                                  ) : (
+                                    <div style={styles.orderItemImagePlaceholder}>🌸</div>
+                                  )}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                     <p style={styles.orderItemName}>Custom Garland Request</p>
+                                     <p style={styles.orderItemMeta}>{order.notes || "No additional notes"}</p>
+                                  </div>
+                               </div>
+                            </div>
+                          ) : order.order_type === "courier" ? (
+                            <div style={styles.orderDetailBox}>
+                               <div style={styles.orderItemRow}>
+                                  <div style={styles.orderItemImagePlaceholder}>📦</div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                     <p style={styles.orderItemName}>Courier Delivery</p>
+                                     <p style={styles.orderItemMeta}>{order.address}</p>
+                                     {order.notes && <p style={styles.orderItemMeta}>Notes: {order.notes}</p>}
+                                  </div>
+                               </div>
+                            </div>
                           ) : order.items_names ? (
                             <div style={styles.orderDetailBox}>
                               <strong style={{ color: "#333", fontSize: "13px" }}>Items:</strong>
@@ -844,14 +867,7 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
                             </div>
                           ) : null}
 
-                          {order.notes && !order.items_names && !order.items?.length && order.order_type !== 'cart' && (
-                            <div style={styles.orderDetailBox}>
-                              <strong style={{ color: "#333", fontSize: "13px" }}>Details:</strong>
-                              <p style={{ margin: "4px 0 0 0", color: "#555", fontSize: "13px", whiteSpace: "pre-wrap" }}>{order.notes}</p>
-                            </div>
-                          )}
-
-                          {order.address && (
+                          {order.address && order.order_type !== "courier" && (
                             <div style={styles.orderDetailBox}>
                               <strong style={{ color: "#333", fontSize: "13px" }}>Delivery Address:</strong>
                               <p style={{ margin: "4px 0 0 0", color: "#555", fontSize: "13px", whiteSpace: "pre-wrap" }}>{order.address}</p>
@@ -877,7 +893,7 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
               {activeSection === "about" && (
                 <div>
                   <h3 style={styles.paneTitle}>About Us</h3>
-                  <p style={styles.paneAboutBrand}>ShiperBox</p>
+                  <p style={styles.paneAboutBrand}>Shiperbox</p>
 
                   {ABOUT_STORY.map((block, i) => (
                     <div key={i} style={i > 0 ? styles.paneStoryBlock : undefined}>
@@ -901,14 +917,14 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
 export default Header;
 
 const styles = {
-  header: { position: "fixed", top: "0px", left: 0, right: 0, height: "110px", display: "flex", alignItems: "center", padding: "0 40px", backgroundColor:"#8ec5fc", borderBottom: "1px solid #e0e0e0", color: "#222", zIndex: 1000 },
+  header: { position: "fixed", top: "0px", left: 0, right: 0, height: "130px", display: "flex", alignItems: "center", padding: "0 40px", backgroundColor:"#8ec5fc", borderBottom: "#8ec5fc", color: "#222", zIndex: 1000 },
   topRow: { display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" },
   leftSection: { display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-start", gap: "30px" },
   logo: { cursor: "pointer", fontSize: "40px", fontWeight: "900", color: "#ffffff", margin: 0, letterSpacing: "-0.5px", whiteSpace: "nowrap" },
   locationContainer: { display: "flex", flexDirection: "column", justifyContent: "center", cursor: "pointer", minWidth: "150px", maxWidth: "260px", margin: "0 0 0 25px" },
-  deliveryTitle: { fontSize: "16px", fontWeight: "900", color: "#ffffff", lineHeight: "1.2" },
+  deliveryTitle: {margin:"0 0 5px 0", fontSize: "18px", fontWeight: "900", color: "#ffffff", lineHeight: "1.2" },
   locationWrapper: { display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" },
-  text: { fontSize: "13px", fontWeight: "600", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "220px" },
+  text: { fontSize: "15px", fontWeight: "600", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "220px" },
   arrowIcon: { fontSize: "10px", color: "#ffffff", fontWeight: "bold", display: "flex", alignItems: "center" },
   searchBox: { display: "flex", flex: 2, background: "#f8f8f8", borderRadius: "10px", overflow: "hidden", border: "1px solid #e0e0e0", height: "48px", maxWidth: "750px", margin: "0 0 0 50px" },
   searchIconWrapper: { paddingLeft: "16px", display: "flex", alignItems: "center", justifyContent: "center" },

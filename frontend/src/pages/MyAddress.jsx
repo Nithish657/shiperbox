@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_URL } from "../api";
 import MobileBottomNav from "../mobile/MobileBottomNav";
+import MobileHeader from "../mobile/MobileHeader";
 import useIsDesktop from "../hooks/useIsDesktop";
 
 const GRADIENT = "linear-gradient(135deg, #4a90f5 0%, #2563eb 100%)";
@@ -14,6 +15,8 @@ export default function MyAddress() {
 
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [headerHeight, setHeaderHeight] = useState(112);
 
   // --- Current Active Location State ---
   const [currentDeliveryAddress, setCurrentDeliveryAddress] = useState(
@@ -37,6 +40,10 @@ export default function MyAddress() {
   const [locating, setLocating] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressError, setAddressError] = useState("");
+
+  const goSearch = () => {
+    if (search.trim() !== "") navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+  };
 
   const loadAddresses = async () => {
     setLoading(true);
@@ -202,13 +209,20 @@ export default function MyAddress() {
 
   return (
     <div style={{ ...styles.page, ...(isDesktop && styles.pageDesktop) }}>
-      <div style={isDesktop ? styles.cardDesktop : undefined}>
-        <div style={{ ...styles.header, ...(isDesktop && styles.headerDesktop) }}>
-         
-          <h2 style={styles.title}>My Addresses</h2>
-        </div>
+      <MobileHeader
+        searchValue={search}
+        setSearchValue={setSearch}
+        onSearch={goSearch}
+        showLogo={false}
+        showTitleBar
+        showBackButton={false}
+        title="My Addresses"
+        isLoggedIn={user_id !== "guest"}
+        onHeightChange={setHeaderHeight}
+      />
 
-        <div style={{ ...styles.scrollArea, ...(isDesktop && styles.scrollAreaDesktop) }}>
+      <div style={isDesktop ? styles.cardDesktop : undefined}>
+        <div style={{ ...styles.scrollArea, ...(isDesktop && styles.scrollAreaDesktop), paddingTop: isDesktop ? "20px" : `${headerHeight + 15}px` }}>
           
           {user_id !== "guest" && addressMode === "list" && (
             <div style={styles.currentLocBanner}>
@@ -379,12 +393,7 @@ const styles = {
   pageDesktop: { display: "flex", justifyContent: "center", backgroundColor: "#eef1f5", padding: "40px 20px", boxSizing: "border-box" },
   cardDesktop: { width: "100%", maxWidth: "680px", background: "#fff", borderRadius: "16px", boxShadow: "0 10px 40px rgba(0,0,0,0.08)", overflow: "hidden", height: "fit-content" },
   
-  header: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", alignItems: "center", padding: "16px 20px", background:" #8ec5fc", color: "#222", gap: "12px", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" },
-  headerDesktop: { position: "static", borderRadius: "16px 16px 0 0", padding: "20px 24px", borderBottom: "1px solid #eee", boxShadow: "none" },
- 
-  title: { margin: "0 0 0 130px", fontSize: "20px", fontWeight: "800", color: "#fff" },
-  
-  scrollArea: { padding: "70px 14px 90px" },
+  scrollArea: { padding: "0 14px 90px" },
   scrollAreaDesktop: { padding: "20px" },
   emptyText: { textAlign: "center", color: "#64748b", fontSize: "14px", marginBottom: "16px" },
   loginBtn: { background: "#ff9f00", color: "#fff", padding: "10px 24px", border: "none", borderRadius: "8px", fontWeight: "700", cursor: "pointer", fontSize: "13px" },

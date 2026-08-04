@@ -78,11 +78,17 @@ const SubcategoryRow = ({ items, category, cartItems, addToCart, updateQty, rows
             const cartItem = cartItems.find(
               (c) => c.product_id === product.id && c.category === category
             );
+            const outOfStock = Number(product.stock) <= 0;
 
             return (
-              <div key={product.id} style={styles.card}>
+              <div key={product.id} style={outOfStock ? { ...styles.card, ...styles.cardOutOfStock } : styles.card}>
                 <div style={styles.imgWrapper}>
-                  <img src={getImageUrl(product.image)} style={styles.image} alt={product.name} />
+                  <img
+                    src={getImageUrl(product.image)}
+                    style={outOfStock ? { ...styles.image, ...styles.imageOutOfStock } : styles.image}
+                    alt={product.name}
+                  />
+                  {outOfStock && <div style={styles.outOfStockBadge}>Out of Stock</div>}
                 </div>
                 
                 <h4 style={styles.name}>{product.name}</h4>
@@ -92,7 +98,9 @@ const SubcategoryRow = ({ items, category, cartItems, addToCart, updateQty, rows
                 <div style={styles.priceRow}>
                   <span style={styles.price}>₹{product.price}</span>
                   
-                  {cartItem ? (
+                  {outOfStock ? (
+                    <span style={styles.outOfStockText}>Out of Stock</span>
+                  ) : cartItem ? (
                     <div style={styles.qtyBox}>
                       <button style={styles.btn} onClick={() => updateQty(cartItem.id, "decrease")}>-</button>
                       <span style={styles.qty}>{cartItem.quantity}</span>
@@ -261,10 +269,22 @@ const styles = {
   },
   
   imgWrapper: { 
+    
+    position: "relative",
     width: "100%", height: "140px", marginBottom: "12px", overflow: "hidden", 
     borderRadius: "10px", backgroundColor: "#f9f9f9" 
   },
   image: { width: "100%", height: "100%", objectFit: "cover" },
+
+  cardOutOfStock: { opacity: 0.6 },
+  imageOutOfStock: { filter: "grayscale(1)" },
+  outOfStockBadge: {
+    position: "absolute", top: "8px", left: "8px",
+    backgroundColor: "rgba(0,0,0,0.75)", color: "#fff",
+    fontSize: "11px", fontWeight: "bold", padding: "4px 8px",
+    borderRadius: "6px", textTransform: "uppercase", letterSpacing: "0.3px"
+  },
+  outOfStockText: { fontSize: "13px", fontWeight: "bold", color: "#e53935" },
   
   name: { fontSize: "16px", margin: "0", fontWeight: "700", color: "#222" },
   weight: { fontSize: "13px", color: "#888", margin: "4px 0 14px 0" },

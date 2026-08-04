@@ -64,6 +64,14 @@ export default function CourierOrder() {
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
   };
 
+  // Auto-inserts the colon as the user types digits, so "1100" becomes "11:00"
+  // instead of sitting there unformatted.
+  const formatTimeInput = (raw) => {
+    const digits = raw.replace(/[^0-9]/g, "").slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  };
+
   const handleSubmit = async () => {
     if (!isLoggedIn || user_id === "guest") return setError("Please log in first");
     if (!contact.fullName || !contact.phone) return setError("Please provide your name and phone number");
@@ -173,6 +181,29 @@ export default function CourierOrder() {
               </p>
             </div>
 
+            {/* NEW ORDER PROCESS NOTE CARD */}
+            <div style={styles.noteCard}>
+              <h3 style={styles.noteTitle}>ℹ️ Important Order Info</h3>
+              <p style={styles.noteText}>
+                Once your order is confirmed, our team will contact you directly via WhatsApp to finalize your bill. 
+                Please note that standard delivery and handling charges are applicable.
+              </p>
+              <p style={styles.noteText}>
+                For your security and trust, all payments are securely processed only after our team shares the full details with you.
+              </p>
+              <div style={styles.noteContactBox}>
+                <span style={styles.noteContactLabel}>Support Contact:</span>
+                <span style={styles.noteContactNumber}>📞 6301912803</span>
+              </div>
+            </div>
+
+            {/* NEW INSTRUCTION BANNER */}
+            <div style={styles.instructionBanner}>
+              <p style={styles.instructionText}>
+                👉 <b>Note:</b> Please fill in your correct details below and click on <b>Submit Request</b> to submit your order.
+              </p>
+            </div>
+
             <h3 style={styles.outsideHeading}>👤 Contact Details</h3>
             <div style={styles.contactBlock}>
               <label style={styles.label}>Full Name *</label>
@@ -180,7 +211,7 @@ export default function CourierOrder() {
 
               <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
                 <div style={{ flex: 1 }}><label style={styles.label}>Phone Number *</label><input type="tel" name="phone" value={contact.phone} onChange={handleContactChange} style={styles.input} /></div>
-                <div style={{ flex: 1 }}><label style={styles.label}>Alternative Number</label><input type="tel" name="altPhone" value={contact.altPhone} onChange={handleContactChange} style={styles.input} /></div>
+                <div style={{ flex: 1 }}><label style={styles.label}>Whatsapp Number *</label><input type="tel" name="altPhone" value={contact.altPhone} onChange={handleContactChange} style={styles.input} /></div>
               </div>
             </div>
 
@@ -226,7 +257,7 @@ export default function CourierOrder() {
                   <input type="date" value={neededDate} onChange={(e) => setNeededDate(e.target.value)} style={styles.input} />
                   <label style={{ ...styles.label, marginTop: "16px" }}>Time Needed *</label>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <input type="text" maxLength="5" placeholder="HH:MM (e.g. 10:30)" value={neededTime} onChange={(e) => setNeededTime(e.target.value.replace(/[^0-9:]/g, ''))} style={{ ...styles.input, flex: 1 }} />
+                    <input type="text" maxLength="5" placeholder="HH:MM (e.g. 10:30)" value={neededTime} onChange={(e) => setNeededTime(formatTimeInput(e.target.value))} style={{ ...styles.input, flex: 1 }} />
                     <select value={neededAmPm} onChange={(e) => setNeededAmPm(e.target.value)} style={{ ...styles.input, width: "85px", flexShrink: 0, padding: "14px 10px", cursor: "pointer" }}>
                       <option value="AM">AM</option><option value="PM">PM</option>
                     </select>
@@ -254,7 +285,6 @@ export default function CourierOrder() {
 }
 
 const styles = {
-  
   container: { paddingTop: "130px", paddingBottom: "60px", paddingLeft: "15px", paddingRight: "15px", display: "flex", justifyContent: "center", backgroundColor: "#f4f7f9", minHeight: "100vh", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
   card: { background: "#ffffff", borderRadius: "24px", padding: "45px 50px", maxWidth: "1050px", width: "100%", boxShadow: "0 10px 40px rgba(0, 0, 0, 0.04)", boxSizing: "border-box" },
   trackerContainer: { backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "24px", marginBottom: "35px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02)" },
@@ -263,7 +293,7 @@ const styles = {
   circle: { width: "26px", height: "26px", borderRadius: "50%", border: "2.5px solid", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s ease" },
   checkMark: { color: "#fff", fontSize: "14px", fontWeight: "bold" },
   routeText: { margin: 0, fontSize: "16px", color: "#4b5563", fontWeight: "500" },
-  infoNote: { fontSize: "14px", color: "#000000", fontStyle: "italic", textAlign: "center", margin: "8px 0 0 0" }, // Added style for the notes
+  infoNote: { fontSize: "14px", color: "#000000", fontStyle: "italic", textAlign: "center", margin: "8px 0 0 0" },
   highlight: { color: "#111827", fontWeight: "800" },
   heading: { margin: "0 0 10px 0", color: "#1a1a1a", fontSize: "30px", fontWeight: "800", letterSpacing: "-0.5px" },
   subheading: { color: "#6b7280", fontSize: "16px", margin: "0", lineHeight: 1.6 },
@@ -271,7 +301,7 @@ const styles = {
   label: { display: "block", fontWeight: "600", fontSize: "13px", marginBottom: "8px", color: "#4b5563" },
   addressRow: { display: "flex", gap: "24px", width: "100%" }, 
   halfColumn: { flex: 1, display: "flex", flexDirection: "column" },
-  contactBlock: { backgroundColor: "#f0f7ff", border: "1px solid #dbeafe", borderRadius: "16px", padding: "24px" },
+  contactBlock: { backgroundColor: "#f0f7ff", border: "1px solid #dbeafe", borderRadius: "16px", padding: "24px", marginBottom: "20px" },
   pickupBlock: { backgroundColor: "#f4f9ff", border: "1px solid #e0f0fe", borderRadius: "16px", padding: "24px", height: "100%", boxSizing: "border-box" },
   dropBlock: { backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "16px", padding: "24px", height: "100%", boxSizing: "border-box" },
   timingBlock: { backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "16px", padding: "24px", height: "100%", boxSizing: "border-box" },
@@ -285,5 +315,15 @@ const styles = {
   confirmText: { color: "#4b5563", lineHeight: 1.6, margin: "12px 0 28px", fontSize: "16px" },
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000 },
   loginBox: { background: "white", padding: "24px", borderRadius: "16px", width: "420px", maxWidth: "90%", position: "relative" },
-  closeBtn: { position: "absolute", top: "12px", right: "16px", border: "none", background: "#f3f4f6", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 }
+  closeBtn: { position: "absolute", top: "12px", right: "16px", border: "none", background: "#f3f4f6", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", zIndex: 10 },
+  
+  // --- NEW NOTE AND INSTRUCTION STYLES ---
+  noteCard: { backgroundColor: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: "12px", padding: "16px", marginBottom: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" },
+  noteTitle: { margin: "0 0 8px 0", fontSize: "15px", fontWeight: "800", color: "#1e40af", display: "flex", alignItems: "center" },
+  noteText: { margin: "0 0 10px 0", fontSize: "14px", color: "#334155", lineHeight: "1.5" },
+  noteContactBox: { backgroundColor: "#dbeafe", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #bfdbfe" },
+  noteContactLabel: { fontSize: "13px", color: "#1e40af", fontWeight: "600" },
+  noteContactNumber: { fontSize: "15px", fontWeight: "800", color: "#1d4ed8" },
+  instructionBanner: { backgroundColor: "#fffbeb", borderLeft: "4px solid #f59e0b", padding: "12px 14px", marginBottom: "20px", borderRadius: "6px" },
+  instructionText: { margin: 0, fontSize: "14px", color: "#b45309", lineHeight: "1.5" },
 };

@@ -307,12 +307,18 @@ export default function MobileSearchResults() {
             <div style={styles.blinkitGrid}>
               {items.map((product) => {
                 const cartItem = cartItems.find((c) => c.product_id === product.id && c.category === product.category);
+                const outOfStock = Number(product.stock) <= 0;
                 return (
-                  <div key={`${product.category}-${product.id}`} style={styles.categoryCard}>
+                  <div key={`${product.category}-${product.id}`} style={outOfStock ? { ...styles.categoryCard, ...styles.cardOutOfStock } : styles.categoryCard}>
                     
                     {/* UPDATED IMAGE WRAPPER */}
                     <div style={styles.imgWrapper}>
-                      <img src={getImageUrl(product.image)} style={styles.image} alt={product.name} />
+                      <img
+                        src={getImageUrl(product.image)}
+                        style={outOfStock ? { ...styles.image, ...styles.imageOutOfStock } : styles.image}
+                        alt={product.name}
+                      />
+                      {outOfStock && <div style={styles.outOfStockBadge}>Out of Stock</div>}
                     </div>
                     
                     <h4 style={styles.catText}>
@@ -324,7 +330,9 @@ export default function MobileSearchResults() {
 
                     <div style={styles.bottomRow}>
                       <p style={styles.price}>₹{product.price}</p>
-                      {cartItem && isLoggedIn ? (
+                      {outOfStock ? (
+                        <span style={styles.outOfStockText}>Out of Stock</span>
+                      ) : cartItem && isLoggedIn ? (
                         <div style={styles.qtyBox}>
                           <button style={styles.btn} onClick={() => updateQty(cartItem.id, "decrease")}>-</button>
                           <span style={styles.qty}>{cartItem.quantity}</span>
@@ -374,21 +382,31 @@ const styles = {
     alignItems: "center", 
     overflow: "hidden", 
     marginBottom: "12px", 
-    backgroundColor: "transparent" // Keeps it perfectly clean
+    backgroundColor: "transparent", // Keeps it perfectly clean
+    position: "relative"
   },
   image: { 
     width: "100%", 
     height: "100%", 
     objectFit: "contain" // Guarantees the entire image is shown without cutting off borders
   },
+  cardOutOfStock: { opacity: 0.6 },
+  imageOutOfStock: { filter: "grayscale(1)" },
+  outOfStockBadge: {
+    position: "absolute", top: "6px", left: "6px",
+    backgroundColor: "rgba(0,0,0,0.75)", color: "#fff",
+    fontSize: "9px", fontWeight: "bold", padding: "3px 6px",
+    borderRadius: "5px", textTransform: "uppercase", letterSpacing: "0.2px"
+  },
+  outOfStockText: { fontSize: "12px", fontWeight: "bold", color: "#e53935" },
   
   catText: { margin: "0 0 10px 0", fontSize: "13px", fontWeight: "700", minHeight: "44px", overflow: "hidden", color: "#111" },
   unitText: { display: "block", fontSize: "11px", color: "#666", fontWeight: "normal", marginTop: "2px" },
   
   bottomRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" },
   price: { fontWeight: "800", fontSize: "14px", margin: 0, color: "#111" },
-  addBtn: { padding: "7px 16px", border: "1.5px solid #2563eb", backgroundColor: "#eaf1fe", color: "#8ec5fc", borderRadius: "8px", fontWeight: "700", fontSize: "12px", cursor: "pointer" },
-  qtyBox: { display: "flex", alignItems: "center", gap: "8px", background: GRADIENT, borderRadius: "8px", padding: "5px 10px" },
+  addBtn: { padding: "7px 16px", border: "1.5px solid #8ec5fc", backgroundColor: "#8ec5fc", color: "#ffffff", borderRadius: "8px", fontWeight: "700", fontSize: "12px", cursor: "pointer" },
+  qtyBox: { display: "flex", alignItems: "center", gap: "8px", background: "#8ec5fc", borderRadius: "8px", padding: "5px 10px" },
   btn: { border: "none", background: "none", color: "#fff", fontWeight: "bold", cursor: "pointer", fontSize: "16px" },
   qty: { fontSize: "14px", fontWeight: "bold", color: "#fff" },
   centerPrompt: { textAlign: "center", padding: "40px 20px", color: "#666" },

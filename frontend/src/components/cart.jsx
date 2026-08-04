@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { API_URL } from "../api";
 import { getImageUrl } from "../utils/imageUrl";
+
+const MIN_ORDER_VALUE = 799;
 
 const BRAND_BLUE = "#8ec5fc";
 
@@ -33,15 +35,30 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
     street: "",
     landmark: "",
     city: "",
-    postalCode: ""
+    postalCode: "",
+    deliveryDate: "",
+    deliverySlot: ""
   });
+
+  const DELIVERY_SLOTS = ["9:00 AM - 12:00 PM", "12:00 PM - 3:00 PM", "3:00 PM - 6:00 PM", "6:00 PM - 9:00 PM"];
+  const todayISO = new Date().toISOString().split("T")[0];
   
   const [saveAsDefault, setSaveAsDefault] = useState(true);
   const [locating, setLocating] = useState(false);
-  const [selectedAddressId, setSelectedAddressId] = useState(null); // Track if user tapped a saved address
+  const [selectedAddressId, setSelectedAddressId] = useState(null); 
 
   const [myAddresses, setMyAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
+
+  // --- NEW: Ref to control the scroll area perfectly ---
+  const scrollAreaRef = useRef(null);
+
+  // Instantly scroll to the top whenever the step changes
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = 0;
+    }
+  }, [step]);
 
   const loadMyAddresses = async () => {
     if (!user_id || user_id === "guest") return;
@@ -73,7 +90,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
       city: addr.city || prev.city,
       postalCode: addr.postal_code || prev.postalCode,
     }));
-    setSelectedAddressId(addr.id); // Mark this as an existing address
+    setSelectedAddressId(addr.id); 
     setError("");
   };
 
@@ -81,7 +98,21 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
     try {
       if (showLoader) setInitialLoading(true);
       const res = await axios.get(`${API_URL}/cart/${user_id}`);
-      setCartItems(res.data.success ? res.data.cart : []);
+      
+      if (res.data?.success) {
+        const rawItems = res.data.cart || [];
+        // Group items and reverse so newly added ones appear at the top
+        const grouped = rawItems.reduce((acc, item) => {
+          const key = `${item.product_id}-${item.category}`;
+          acc[key] = acc[key] ? { ...acc[key], quantity: acc[key].quantity + Number(item.quantity) } : { ...item };
+          return acc;
+        }, {});
+        
+        const processed = Object.values(grouped).reverse();
+        setCartItems(processed);
+      } else {
+        setCartItems([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -154,13 +185,11 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
     }
     setContact({ ...contact, [e.target.name]: val });
     
-    // If they manually edit an address field, it's no longer the exact saved address
     if (["building", "street", "landmark", "city", "postalCode"].includes(e.target.name)) {
       setSelectedAddressId(null);
     }
   };
 
-  // --- NEW: Handle Current Location Detection ---
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) return alert("Geolocation not supported by this browser.");
     setLocating(true);
@@ -182,7 +211,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
               city: addr.city || addr.town || addr.state_district || "",
               postalCode: addr.postcode || ""
             }));
-            setSelectedAddressId(null); // Treat this as a new address to be saved
+            setSelectedAddressId(null); 
           } else {
             alert("Location found, but no exact address details were returned.");
           }
@@ -205,14 +234,35 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
   const totalItemCount = cartItems.reduce((count, item) => count + Number(item.quantity || 1), 0);
   const finalTotal = totalPrice;
 
+  const hasOutOfStockItem = cartItems.some((item) => Number(item.stock) <= 0);
+  const isBelowMinOrder = finalTotal < MIN_ORDER_VALUE;
+  const amountToReachMin = MIN_ORDER_VALUE - finalTotal;
+
   const handlePlaceOrderClick = () => {
     if (cartItems.length === 0) return;
+    if (hasOutOfStockItem) {
+      setError("Please remove out of stock items from your cart before proceeding.");
+      return;
+    }
+    if (isBelowMinOrder) {
+      setError(`Minimum order value is ₹${MIN_ORDER_VALUE}. Add ₹${amountToReachMin.toFixed(0)} more to place your order.`);
+      return;
+    }
     setStep(2);
   };
 
   const handleConfirmOrder = async () => {
-    if (!contact.fullName || contact.phone.length !== 10 || contact.altPhone.length !== 10 || !contact.building || !contact.street || !contact.city || !contact.postalCode) {
-      setError("Please fill all fields. Both phone numbers must be exactly 10 digits.");
+    // Validating altPhone is required, postalCode is optional
+    if (!contact.fullName || contact.phone.length !== 10 || contact.altPhone.length !== 10 || !contact.building || !contact.street || !contact.city) {
+      setError("Please fill all required fields (including Alternative Number).");
+      return;
+    }
+    if (!contact.deliveryDate || !contact.deliverySlot) {
+      setError("Please choose a delivery date and time slot.");
+      return;
+    }
+    if (finalTotal < MIN_ORDER_VALUE) {
+      setError(`Minimum order value is ₹${MIN_ORDER_VALUE}. Please go back and add more items.`);
       return;
     }
 
@@ -226,7 +276,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
         total_price: finalTotal,
         contact,
         saveAsDefault,
-        isNewAddress: !selectedAddressId // Tell backend whether to save this as a new address row
+        isNewAddress: !selectedAddressId 
       };
 
       const res = await axios.post(`${API_URL}/cart/checkout`, payload);
@@ -234,7 +284,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
       if (res.data.success) {
         setStep(3);
         if (onCartChange) onCartChange();
-        loadMyAddresses(); // Refresh addresses in background
+        loadMyAddresses(); 
       } else {
         setError(res.data.message || "Failed to place order.");
       }
@@ -267,6 +317,11 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
         <p style={{ color: "#666", lineHeight: "1.5", margin: "10px 20px" }}>
           We have received your order and details. You will receive your delivery shortly.
         </p>
+        {contact.deliveryDate && contact.deliverySlot && (
+          <p style={{ color: "#333", fontWeight: "600", margin: "0 20px 10px" }}>
+            Scheduled for {new Date(`${contact.deliveryDate}T00:00:00`).toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}, {contact.deliverySlot}
+          </p>
+        )}
         <button style={{ ...styles.checkoutBtn, marginTop: "20px" }} onClick={closeCart}>
           Back to Home
         </button>
@@ -280,14 +335,16 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
     <div style={styles.container}>
       {renderHeader()}
 
-      <div style={styles.scrollArea}>
+      {/* Attach the scrollAreaRef here so we can reset it to the top on step change */}
+      <div ref={scrollAreaRef} style={styles.scrollArea}>
         {step === 1 && (
           <>
             {cartItems.map((item) => {
               const isPending = !!pendingIds[item.id];
+              const outOfStock = Number(item.stock) <= 0;
               return (
-                <div key={item.id} style={{ ...styles.itemCard, opacity: isPending ? 0.6 : 1 }}>
-                  <img src={getImageUrl(item.image)} style={styles.itemImg} alt={item.name} />
+                <div key={item.id} style={{ ...styles.itemCard, opacity: isPending ? 0.6 : outOfStock ? 0.65 : 1 }}>
+                  <img src={getImageUrl(item.image)} style={outOfStock ? { ...styles.itemImg, filter: "grayscale(1)" } : styles.itemImg} alt={item.name} />
 
                   <div style={styles.details}>
                     <div style={styles.titleRow}>
@@ -298,6 +355,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
                     </div>
                     
                     <p style={styles.weight}>{item.product_quantity || item.unit || item.weight || "1 kg"}</p>
+                    {outOfStock && <p style={styles.outOfStockText}>Out of Stock</p>}
 
                     <div style={styles.bottomRow}>
                       <div style={styles.priceGroup}>
@@ -310,7 +368,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
                       <div style={styles.controls}>
                         <button style={styles.qtyBtn} onClick={() => updateQty(item.id, "decrease", item.quantity)} disabled={isPending}>−</button>
                         <span style={styles.qty}>{item.quantity}</span>
-                        <button style={styles.qtyBtn} onClick={() => updateQty(item.id, "increase", item.quantity)} disabled={isPending}>+</button>
+                        <button style={styles.qtyBtn} onClick={() => updateQty(item.id, "increase", item.quantity)} disabled={isPending || outOfStock}>+</button>
                       </div>
                     </div>
                   </div>
@@ -326,22 +384,45 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
               <div style={styles.billDivider} />
               <div style={styles.billRow}><span style={styles.billGrandLabel}>Grand Total</span><span style={styles.billGrandValue}>₹{finalTotal.toFixed(0)}</span></div>
             </div>
+            {error && <p style={styles.errorText}>{error}</p>}
           </>
         )}
 
         {step === 2 && (
           <div style={styles.formContainer}>
+            
+            <div style={styles.noteCard}>
+              <h3 style={styles.noteTitle}>ℹ️ Important Order Info</h3>
+              <p style={styles.noteText}>
+                Once your order is confirmed, our team will contact you directly via WhatsApp to finalize your bill. 
+                Please note that standard delivery and handling charges are applicable.
+              </p>
+              <p style={styles.noteText}>
+                For your security and trust, all payments are securely processed only after our team shares the full details with you.
+              </p>
+              <div style={styles.noteContactBox}>
+                <span style={styles.noteContactLabel}>Support Contact:</span>
+                <span style={styles.noteContactNumber}>📞 6301912803</span>
+              </div>
+            </div>
+
+            <div style={styles.instructionBanner}>
+              <p style={styles.instructionText}>
+                👉 <b>Note:</b> Please fill in your correct details below and click on <b>Confirm Order</b> to submit your request.
+              </p>
+            </div>
+
             <h3 style={styles.sectionTitle}>Contact Info</h3>
             <input type="text" name="fullName" value={contact.fullName} onChange={handleContactChange} placeholder="Full Name *" style={styles.input} />
 
             <div style={{ display: "flex", gap: "10px" }}>
               <div style={styles.phoneInputWrapper}>
                 <span style={styles.prefix}>+91</span>
-                <input type="tel" name="phone" value={contact.phone} onChange={handleContactChange} placeholder="Phone *" style={styles.phoneInput} />
+                <input type="tel" name="phone" value={contact.phone} onChange={handleContactChange} placeholder="Phone Number *" style={styles.phoneInput} />
               </div>
               <div style={styles.phoneInputWrapper}>
                 <span style={styles.prefix}>+91</span>
-                <input type="tel" name="altPhone" value={contact.altPhone} onChange={handleContactChange} placeholder="Alt Phone *" style={styles.phoneInput} />
+                <input type="tel" name="altPhone" value={contact.altPhone} onChange={handleContactChange} placeholder="Whatsapp Number *" style={styles.phoneInput} />
               </div>
             </div>
 
@@ -349,7 +430,6 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
               <h3 style={{ fontSize: "15px", color: "#333", margin: 0 }}>Delivery Address</h3>
             </div>
 
-            {/* GPS Location Button */}
             <button type="button" onClick={handleUseCurrentLocation} style={styles.detectBtn} disabled={locating}>
               {locating ? "📍 Detecting location..." : "📍 Auto-fill Current Location"}
             </button>
@@ -360,10 +440,32 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
             
             <div style={{ display: "flex", gap: "10px" }}>
               <input type="text" name="city" value={contact.city} onChange={handleContactChange} placeholder="Village / City *" style={{ ...styles.input, flex: 1, marginBottom: 0 }} />
-              <input type="text" name="postalCode" value={contact.postalCode} onChange={handleContactChange} placeholder="Pincode *" style={{ ...styles.input, flex: 1, marginBottom: 0 }} />
+              <input type="text" name="postalCode" value={contact.postalCode} onChange={handleContactChange} placeholder="Pincode (Optional)" style={{ ...styles.input, flex: 1, marginBottom: 0 }} />
             </div>
 
-            {/* SAVED ADDRESSES */}
+            <h3 style={styles.sectionTitle}>Delivery Date & Time</h3>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <input
+                type="date"
+                name="deliveryDate"
+                value={contact.deliveryDate}
+                min={todayISO}
+                onChange={handleContactChange}
+                style={{ ...styles.input, flex: 1, marginBottom: 0 }}
+              />
+              <select
+                name="deliverySlot"
+                value={contact.deliverySlot}
+                onChange={handleContactChange}
+                style={{ ...styles.input, flex: 1, marginBottom: 0 }}
+              >
+                <option value="">Select Time Slot *</option>
+                {DELIVERY_SLOTS.map((slot) => (
+                  <option key={slot} value={slot}>{slot}</option>
+                ))}
+              </select>
+            </div>
+
             {(addressesLoading || myAddresses.length > 0) && (
               <div style={{ marginTop: "20px" }}>
                 <p style={styles.savedAddressesHeading}>
@@ -386,7 +488,7 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
                     <p style={styles.savedText}>
                       <strong>{addr.full_name}</strong><br/>
                       {addr.building}, {addr.street}<br/>
-                      {addr.city} - {addr.postal_code}<br/>
+                      {addr.city} {addr.postal_code ? `- ${addr.postal_code}` : ""}<br/>
                       Phone: {addr.phone}
                     </p>
                   </div>
@@ -405,13 +507,24 @@ export default function Cart({ user_id = localStorage.getItem("phone") || "guest
       </div>
 
       <div style={styles.footer}>
+        {step === 1 && isBelowMinOrder && cartItems.length > 0 && (
+          <p style={{ color: "#e53935", fontSize: "12px", margin: "0 0 6px 0", width: "100%" }}>
+            Add ₹{amountToReachMin.toFixed(0)} more to reach the ₹{MIN_ORDER_VALUE} minimum order value.
+          </p>
+        )}
         <div style={styles.totalInfo}>
           <span style={styles.totalPrice}>₹{finalTotal}</span>
           <span style={styles.itemCount}>TOTAL</span>
         </div>
 
         {step === 1 ? (
-          <button style={styles.checkoutBtn} onClick={handlePlaceOrderClick}>Place Order</button>
+          <button
+            style={{ ...styles.checkoutBtn, opacity: isBelowMinOrder ? 0.6 : 1, cursor: isBelowMinOrder ? "not-allowed" : "pointer" }}
+            onClick={handlePlaceOrderClick}
+            disabled={isBelowMinOrder}
+          >
+            Place Order
+          </button>
         ) : (
           <button style={{ ...styles.checkoutBtn, opacity: submitting ? 0.7 : 1 }} onClick={handleConfirmOrder} disabled={submitting}>
             {submitting ? "Processing..." : "Confirm Order"}
@@ -428,7 +541,10 @@ const styles = {
   heading: { margin: "0 0 0 20px", fontSize: "25px", fontWeight: "800", color: "#333" },
   exitBtn: { background: "#f0f0f0", border: "none", fontSize: "25px", width: "46px", height: "32px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#333", fontWeight: "bold", transition: "background 0.2s ease" },
   center: { textAlign: "center", padding: "40px", color: "#666", fontWeight: "500" },
-  scrollArea: { flex: 1, overflowY: "auto", padding: "15px" },
+  
+  // This scrollArea handles all the internal scrolling
+  scrollArea: { flex: 1, overflowY: "auto", padding: "15px", scrollBehavior: "smooth" },
+  
   itemCard: { display: "flex", alignItems: "flex-start", gap: "14px", padding: "14px", background: "#fff", marginBottom: "10px", borderRadius: "14px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", transition: "opacity 0.2s ease" },
   itemImg: { width: "84px", height: "84px", borderRadius: "10px", objectFit: "cover", border: "1px solid #f0f0f0", flexShrink: 0 },
   details: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 },
@@ -436,6 +552,7 @@ const styles = {
   title: { margin: 0, fontSize: "15px", color: "#222", fontWeight: "700", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   deleteBtn: { background: "transparent", border: "none", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, opacity: 0.7, transition: "opacity 0.15s ease" },
   weight: { margin: "3px 0 10px 0", fontSize: "13px", color: "#888" },
+  outOfStockText: { margin: "0 0 8px 0", fontSize: "12px", fontWeight: "bold", color: "#e53935" },
   bottomRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" },
   priceGroup: { display: "flex", flexDirection: "column" },
   price: { fontSize: "15px", fontWeight: "800", color: "#111" },
@@ -470,9 +587,18 @@ const styles = {
   prefix: { padding: "12px", background: "#f0f0f0", color: "#555", fontWeight: "bold", borderRight: "1px solid #ddd", fontSize: "14px" },
   phoneInput: { flex: 1, padding: "12px", border: "none", outline: "none", fontSize: "14px", width: "100%" },
   successIcon: { width: "70px", height: "70px", borderRadius: "50%", background: "#dff8e6", color: BRAND_BLUE, fontSize: "35px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
-  footer: { padding: "15px", background: "#fff", borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  footer: { padding: "15px", background: "#fff", borderTop: "1px solid #eee", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" },
   totalInfo: { display: "flex", flexDirection: "column" },
   itemCount: { fontSize: "13px", color: "#888", fontWeight: "700" },
   totalPrice: { fontSize: "25px", fontWeight: "900", color: "#111" },
-  checkoutBtn: { background: BRAND_BLUE, color: "#fff", border: "none", padding: "18px 26px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "15px", boxShadow: "0 4px 12px rgba(142, 197, 252, 0.4)" }
+  checkoutBtn: { background: BRAND_BLUE, color: "#fff", border: "none", padding: "18px 26px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "15px", boxShadow: "0 4px 12px rgba(142, 197, 252, 0.4)" },
+
+  noteCard: { backgroundColor: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: "12px", padding: "16px", marginBottom: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" },
+  noteTitle: { margin: "0 0 8px 0", fontSize: "15px", fontWeight: "800", color: "#1e40af", display: "flex", alignItems: "center" },
+  noteText: { margin: "0 0 10px 0", fontSize: "14px", color: "#334155", lineHeight: "1.5" },
+  noteContactBox: { backgroundColor: "#dbeafe", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #bfdbfe" },
+  noteContactLabel: { fontSize: "13px", color: "#1e40af", fontWeight: "600" },
+  noteContactNumber: { fontSize: "15px", fontWeight: "800", color: "#1d4ed8" },
+  instructionBanner: { backgroundColor: "#fffbeb", borderLeft: "4px solid #f59e0b", padding: "12px 14px", marginBottom: "16px", borderRadius: "6px" },
+  instructionText: { margin: 0, fontSize: "14px", color: "#b45309", lineHeight: "1.5" },
 };

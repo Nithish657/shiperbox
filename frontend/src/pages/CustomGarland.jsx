@@ -53,6 +53,15 @@ export default function CustomGarland() {
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
   };
 
+  // Auto-inserts the colon as the user types digits, so "1100" becomes "11:00"
+  // instead of sitting there unformatted. Also handles backspacing cleanly
+  // since it's always recomputed from the raw digits typed so far.
+  const formatTimeInput = (raw) => {
+    const digits = raw.replace(/[^0-9]/g, "").slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  };
+
   const handleNext = () => {
     if (!photo) return setError("Please attach a reference photo");
     if (!neededDate || !neededTime) return setError("Please specify both date and time for when it's needed");
@@ -164,7 +173,7 @@ export default function CustomGarland() {
                   <div style={{ flex: 1 }}>
                     <label style={styles.label}>Time Needed *</label>
                     <div style={{ display: "flex", gap: "10px" }}>
-                      <input type="text" maxLength="5" placeholder="HH:MM (e.g. 10:30)" value={neededTime} onChange={(e) => setNeededTime(e.target.value.replace(/[^0-9:]/g, ''))} style={{ ...styles.input, flex: 1 }} />
+                      <input type="text" maxLength="5" placeholder="HH:MM (e.g. 10:30)" value={neededTime} onChange={(e) => setNeededTime(formatTimeInput(e.target.value))} style={{ ...styles.input, flex: 1 }} />
                       <select value={neededAmPm} onChange={(e) => setNeededAmPm(e.target.value)} style={{ ...styles.input, width: "85px", flexShrink: 0, padding: "14px 10px", cursor: "pointer" }}>
                         <option value="AM">AM</option><option value="PM">PM</option>
                       </select>
@@ -183,6 +192,29 @@ export default function CustomGarland() {
 
             {step === 2 && (
               <>
+                {/* NEW ORDER PROCESS NOTE CARD */}
+                <div style={styles.noteCard}>
+                  <h3 style={styles.noteTitle}>ℹ️ Important Order Info</h3>
+                  <p style={styles.noteText}>
+                    Once your order is confirmed, our team will contact you directly via WhatsApp to finalize your bill. 
+                    Please note that standard delivery and handling charges are applicable.
+                  </p>
+                  <p style={styles.noteText}>
+                    For your security and trust, all payments are securely processed only after our team shares the full details with you.
+                  </p>
+                  <div style={styles.noteContactBox}>
+                    <span style={styles.noteContactLabel}>Support Contact:</span>
+                    <span style={styles.noteContactNumber}>📞 6301912803</span>
+                  </div>
+                </div>
+
+                {/* NEW INSTRUCTION BANNER */}
+                <div style={styles.instructionBanner}>
+                  <p style={styles.instructionText}>
+                    👉 <b>Note:</b> Please fill in your correct details below and click on <b>Place Order</b> to submit your request.
+                  </p>
+                </div>
+
                 <div style={styles.contactBlock}>
                   <h3 style={styles.blockTitle}>👤 Contact Details</h3>
                   <label style={styles.label}>Full Name *</label>
@@ -190,7 +222,7 @@ export default function CustomGarland() {
 
                   <div style={{ display: "flex", gap: "15px" }}>
                     <div style={{ flex: 1 }}><label style={styles.label}>Phone Number *</label><input type="tel" name="phone" value={address.phone} onChange={handleAddressChange} placeholder="e.g. 9876543210" style={styles.input} /></div>
-                    <div style={{ flex: 1 }}><label style={styles.label}>Alternative Number</label><input type="tel" name="altPhone" value={address.altPhone} onChange={handleAddressChange} placeholder="e.g. 9876543210" style={styles.input} /></div>
+                    <div style={{ flex: 1 }}><label style={styles.label}>Whatsapp Number *</label><input type="tel" name="altPhone" value={address.altPhone} onChange={handleAddressChange} placeholder="e.g. 9876543210" style={styles.input} /></div>
                   </div>
                 </div>
 
@@ -249,5 +281,15 @@ const styles = {
   confirmText: { color: "#4b5563", lineHeight: 1.6, margin: "12px 0 28px", fontSize: "16px" },
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000 },
   loginBox: { background: "white", padding: "24px", borderRadius: "16px", width: "420px", maxWidth: "90%", position: "relative", boxShadow: "0 20px 50px rgba(0,0,0,0.15)" },
-  closeBtn: { position: "absolute", top: "12px", right: "16px", border: "none", background: "#f3f4f6", borderRadius: "50%", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", cursor: "pointer", color: "#4b5563", zIndex: 10 }
+  closeBtn: { position: "absolute", top: "12px", right: "16px", border: "none", background: "#f3f4f6", borderRadius: "50%", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", cursor: "pointer", color: "#4b5563", zIndex: 10 },
+  
+  // --- NEW NOTE AND INSTRUCTION STYLES ---
+  noteCard: { backgroundColor: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: "12px", padding: "16px", marginBottom: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" },
+  noteTitle: { margin: "0 0 8px 0", fontSize: "15px", fontWeight: "800", color: "#1e40af", display: "flex", alignItems: "center" },
+  noteText: { margin: "0 0 10px 0", fontSize: "14px", color: "#334155", lineHeight: "1.5" },
+  noteContactBox: { backgroundColor: "#dbeafe", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #bfdbfe" },
+  noteContactLabel: { fontSize: "13px", color: "#1e40af", fontWeight: "600" },
+  noteContactNumber: { fontSize: "15px", fontWeight: "800", color: "#1d4ed8" },
+  instructionBanner: { backgroundColor: "#fffbeb", borderLeft: "4px solid #f59e0b", padding: "12px 14px", marginBottom: "20px", borderRadius: "6px" },
+  instructionText: { margin: 0, fontSize: "14px", color: "#b45309", lineHeight: "1.5" },
 };

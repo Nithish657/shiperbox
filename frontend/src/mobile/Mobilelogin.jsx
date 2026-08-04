@@ -130,12 +130,16 @@ export default function MobileLogin({ onLoginSuccess, onClose }) {
     try {
       const res = await axios.post(`${API_URL}/auth/verify-otp`, { email: cleanEmail, otp: otp.trim(), name: cleanName });
       if (res.data.success) {
-        localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("phone", cleanEmail);
-        localStorage.setItem("name", cleanName);
-        // The actual proof of identity - every request now sends this so the
-        // backend can verify who's calling instead of just trusting user_id.
-        localStorage.setItem("userToken", res.data.token);
+        try {
+          localStorage.setItem("isLoggedIn", "true");
+          localStorage.setItem("phone", cleanEmail);
+          localStorage.setItem("name", cleanName);
+          // The actual proof of identity - every request now sends this so the
+          // backend can verify who's calling instead of just trusting user_id.
+          localStorage.setItem("userToken", res.data.token);
+        } catch (storageErr) {
+          console.error("Could not persist session:", storageErr);
+        }
         setStep("success");
         setTimeout(() => {
           if (onLoginSuccess) onLoginSuccess();
@@ -401,7 +405,8 @@ const styles = {
     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: "rgba(10, 20, 20, 0.55)", zIndex: 3000,
     display: "flex", alignItems: "center", justifyContent: "center",
-    padding: "20px", boxSizing: "border-box",
+    padding: "20px", paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
+    boxSizing: "border-box",
   },
   sheet: {
     width: "100%", maxWidth: "400px", backgroundColor: PAPER,
@@ -451,7 +456,7 @@ const styles = {
   otpRow: { display: "flex", gap: "10px", justifyContent: "space-between" },
   otpBox: {
     width: "44px", height: "52px", textAlign: "center",
-    borderRadius: "12px", border: " #000000", backgroundColor: MIST,
+    borderRadius: "12px", border: `1.5px solid ${LINE}`, backgroundColor: MIST,
     fontSize: "20px", fontWeight: "700", color: INK,
     fontFamily: "'IBM Plex Mono', monospace",
     outline: "none", boxSizing: "border-box",

@@ -94,15 +94,12 @@ router.post("/login", loginLimiter, async (req, res) => {
     console.log(`\n🔑 [ADMIN LOGIN OTP] Login attempt by: ${adminRow.email} | OTP sent to main admin\n`);
 
     try {
-      // Sent via Brevo's HTTP API instead of raw SMTP (nodemailer) - Render's
-      // free tier silently hangs/blocks outbound SMTP connections on port 587,
-      // which left this request stuck pending forever with no error.
-      // A normal HTTPS call like this works fine on Render.
+      // Sent via Brevo's HTTP API instead of raw SMTP (nodemailer)
       await axios.post(
         "https://api.brevo.com/v3/smtp/email",
         {
           sender: { name: "ShiperBox Admin", email: process.env.EMAIL_USER },
-          to: [{ email: MAIN_ADMIN_EMAIL, name: "Admin" }], // always this ONE constant address, never adminRow.email or req.body
+          to: [{ email: MAIN_ADMIN_EMAIL, name: "Admin" }], // always this ONE constant address
           subject: "Admin Login OTP",
           htmlContent: `
             <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
@@ -172,10 +169,10 @@ router.post("/verify-otp", verifyLimiter, (req, res) => {
     return res.status(500).json({ success: false, message: "Admin login is not configured" });
   }
 
+  // Token is generated without an expiration time so it lasts indefinitely
   const token = jwt.sign(
     { role: pending.adminRole, email: pending.adminEmail, id: Number(adminId) },
-    process.env.ADMIN_JWT_SECRET,
-    { expiresIn: "12h" }
+    process.env.ADMIN_JWT_SECRET
   );
 
   res.json({ success: true, token });

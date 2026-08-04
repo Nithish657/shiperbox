@@ -47,14 +47,12 @@ function buildAddress(order) {
 }
 
 // Parses the item list a cart order stored in its `notes` column at checkout time
-// (cart.js checkout stores JSON.stringify({ contact, items }) in `notes`).
 function extractCartItems(order) {
   if (order.order_type !== "cart" || !order.notes) return [];
   try {
     const parsed = JSON.parse(order.notes);
     return Array.isArray(parsed.items) ? parsed.items : [];
   } catch (e) {
-    // Older orders may have plain-text notes instead of JSON — no structured items available
     return [];
   }
 }
@@ -64,19 +62,20 @@ router.get("/:user_id", requireUser, async (req, res) => {
   try {
     const userId = req.userEmail;
 
-    const [cart] = await db.query(`SELECT *, 'cart' AS order_type FROM cart_orders WHERE user_id = ?`, [userId]);
-    const [garland] = await db.query(`SELECT *, 'garland' AS order_type FROM garland_orders WHERE user_id = ?`, [userId]);
-    const [courier] = await db.query(`SELECT *, 'courier' AS order_type FROM courier_orders WHERE user_id = ?`, [userId]);
-    const [bulkVeg] = await db.query(`SELECT * FROM orders WHERE user_id = ?`, [userId]);
+    // Use Promise.all to fetch all orders concurrently for faster loading
+    const [cartRes, garlandRes, courierRes, bulkVegRes] = await Promise.all([
+      db.query(`SELECT *, 'cart' AS order_type FROM cart_orders WHERE user_id = ?`, [userId]),
+      db.query(`SELECT *, 'garland' AS order_type FROM garland_orders WHERE user_id = ?`, [userId]),
+      db.query(`SELECT *, 'courier' AS order_type FROM courier_orders WHERE user_id = ?`, [userId]),
+      db.query(`SELECT * FROM orders WHERE user_id = ?`, [userId])
+    ]);
 
-    // Combine and sort by newest first.
-    // NOTE: 'id' is NOT comparable across tables — cart_orders, garland_orders,
-    // courier_orders, and orders each have their own independent auto-increment
-    // sequence, so sorting by id mixes up chronology across order types.
-    // Sort by the actual timestamp instead.
-    const data = [...cart, ...garland, ...courier, ...bulkVeg].sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
+    // Combine all orders and sort by newest first (handling potential missing timestamps gracefully)
+    const data = [...cartRes[0], ...garlandRes[0], ...courierRes[0], ...bulkVegRes[0]].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+      const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+      return dateB - dateA;
+    });
 
     const mappedOrders = data.map((order) => {
       let mapped = { ...order };

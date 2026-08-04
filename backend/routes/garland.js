@@ -77,12 +77,33 @@ router.post("/", requireUser, upload.single("reference_image"), async (req, res)
 
     try {
       const formattedDate = new Date(needed_by).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+      const fullAddress = `${building_name || ""}, ${street || ""}, ${landmark ? landmark + ", " : ""}${city_or_village || ""}${state ? ", " + state : ""}${pin_code ? " - " + pin_code : ""}`;
+
+      const htmlContent = `
+        <div style="font-family: sans-serif; color: #222; max-width: 600px;">
+          <h2 style="color: #0c831f;">New Custom Garland Order! 🌸</h2>
+          <table width="100%" style="border-collapse: collapse; margin-bottom: 20px;">
+            <tr><td style="padding:6px 0;"><strong>Needed By:</strong></td><td>${formattedDate}</td></tr>
+            <tr><td style="padding:6px 0;"><strong>Reference Image:</strong></td><td><a href="${imageUrl}">${imageUrl}</a></td></tr>
+          </table>
+          <h4 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Contact Details:</h4>
+          <p><strong>Name:</strong> ${name || "-"}</p>
+          <p><strong>Email:</strong> ${email || "-"}</p>
+          <p><strong>Phone:</strong> +91 ${phone_number || "-"}</p>
+          <p><strong>Alt Phone:</strong> +91 ${alt_phone_num || "-"}</p>
+          <p><strong>Customer Account:</strong> +${user_id}</p>
+          <h4 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Delivery Address:</h4>
+          <p>${fullAddress}</p>
+          <h4 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Notes:</h4>
+          <p>${notes || "-"}</p>
+        </div>
+      `;
 
       const brevoPayload = {
         sender: { name: "Garland Orders App", email: "shiperbox@gmail.com" },
         to: [{ email: "shiperbox@gmail.com", name: "Admin" }],
         subject: "New Custom Garland Order",
-        textContent: `New Custom Garland Order! \n\nCustomer Phone: +${user_id}\nNeeded By: ${formattedDate}\n\nOrder Details & Address:\n${notes}\n\nImage URL: ${imageUrl}`,
+        htmlContent: htmlContent,
       };
 
       await axios.post("https://api.brevo.com/v3/smtp/email", brevoPayload, {

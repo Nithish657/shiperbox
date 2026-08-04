@@ -6,6 +6,7 @@ const path = require("path");
 const requireUser = require("../middleware/requireUser");
 
 const TABLES = { vegetables: "vegetables", flowers: "flowers" };
+const MIN_ORDER_VALUE = 799;
 
 router.get("/recommendations/all", async (req, res) => {
   try {
@@ -108,7 +109,7 @@ router.put("/decrease/:id", requireUser, async (req, res) => {
 router.get("/:user_id", requireUser, async (req, res) => {
   try {
     const sql = `
-      SELECT c.*, COALESCE(v.quantity, f.quantity) AS unit
+      SELECT c.*, COALESCE(v.quantity, f.quantity) AS unit, COALESCE(v.stock, f.stock) AS stock
       FROM cart c
       LEFT JOIN vegetables v ON c.product_id = v.id AND c.category = 'vegetables'
       LEFT JOIN flowers f ON c.product_id = f.id AND c.category = 'flowers'
@@ -133,7 +134,29 @@ router.delete("/:id", requireUser, async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-async function sendCheckoutEmail(total_price, contact, dropAddress, items) {
+// Formats a "YYYY-MM-DD" delivery date into something readable, e.g. "Mon, 05 Aug 2026"
+function formatDeliveryDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+}
+
+// Order-placed timestamp, formatted in IST regardless of server timezone
+function formatOrderPlacedAt(date) {
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }) + " IST";
+}
+
+async function sendCheckoutEmail(total_price, contact, dropAddress, items, deliveryDate, deliverySlot, orderPlacedAt) {
   try {
     const attachments = [];
     const htmlItems = await Promise.all(
@@ -157,21 +180,35 @@ async function sendCheckoutEmail(total_price, contact, dropAddress, items) {
     const htmlContent = `
       <div style="font-family: sans-serif; color: #222; max-width: 600px;">
         <h2 style="color: #0c831f;">New Grocery Order! 🛒</h2>
+        <p style="color:#666; font-size:13px; margin: -10px 0 15px 0;">Order placed: ${orderPlacedAt}</p>
         <table width="100%" style="border-collapse: collapse; margin-bottom: 20px;">${htmlItems}</table>
         <h3 style="background: #f4f6f9; padding: 15px; border-radius: 8px;">Total Paid: ₹${total_price}</h3>
+
+        <div style="background:#fff7ed; border:1px solid #f59e0b; border-radius:8px; padding:14px 16px; margin-bottom:20px;">
+          <p style="margin:0; font-size:16px; font-weight:bold; color:#b45309;">
+            ⏰ Needed By: ${formatDeliveryDate(deliveryDate)} &nbsp;|&nbsp; ${deliverySlot || "-"}
+          </p>
+        </div>
+
         <h4 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Delivery Details:</h4>
         <p><strong>Name:</strong> ${contact.fullName}</p>
         <p><strong>Phone:</strong> +91 ${contact.phone}</p>
-        <p><strong>Address:</strong> ${dropAddress}</p>
+        <p><strong>Alt Phone:</strong> +91 ${contact.altPhone || "-"}</p>
+        <h4 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Full Delivery Address:</h4>
+        <p>
+          ${contact.building || ""}<br/>
+          ${contact.street || ""}<br/>
+          ${contact.landmark ? contact.landmark + "<br/>" : ""}
+          ${contact.city || ""} - ${contact.postalCode || ""}
+        </p>
+        <p style="color:#666; font-size:13px;"><strong>Full address (single line):</strong> ${dropAddress}</p>
       </div>
     `;
 
-    const recipientEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
-
     const brevoPayload = {
       sender: { name: "ShiperBox Cart Orders", email: process.env.EMAIL_USER },
-      to: [{ email: recipientEmail, name: "Admin" }],
-      subject: `New Grocery Cart Order - ₹${total_price}`,
+      to: [{ email: "shiperbox@gmail.com", name: "Admin" }],
+      subject: `New Grocery Cart Order - ₹${total_price} (Needed by ${formatDeliveryDate(deliveryDate)}, ${deliverySlot || "-"})`,
       htmlContent: htmlContent,
       attachment: attachments.length > 0 ? attachments : undefined
     };
@@ -190,8 +227,21 @@ router.post("/checkout", requireUser, async (req, res) => {
   if (!contact || !contact.fullName || !contact.phone || !contact.building || !contact.street || !contact.city || !contact.postalCode) {
     return res.status(400).json({ success: false, message: "Missing delivery details." });
   }
+  if (!contact.deliveryDate || !contact.deliverySlot) {
+    return res.status(400).json({ success: false, message: "Please choose a delivery date and time slot." });
+  }
+  // Delivery date must be a valid, non-past date
+  const deliveryDateObj = new Date(`${contact.deliveryDate}T00:00:00`);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  if (isNaN(deliveryDateObj.getTime()) || deliveryDateObj < todayStart) {
+    return res.status(400).json({ success: false, message: "Please choose a valid, upcoming delivery date." });
+  }
   if (typeof total_price !== "number" || !(total_price > 0)) {
     return res.status(400).json({ success: false, message: "Invalid order total." });
+  }
+  if (total_price < MIN_ORDER_VALUE) {
+    return res.status(400).json({ success: false, message: `Minimum order value is ₹${MIN_ORDER_VALUE}. Please add more items to your cart.` });
   }
 
   let connection;
@@ -224,20 +274,24 @@ router.post("/checkout", requireUser, async (req, res) => {
     }
 
     const dropAddress = `${contact.building}, ${contact.street}, ${contact.landmark ? contact.landmark + ", " : ""}${contact.city} - ${contact.postalCode}`;
-    const orderData = { contact, items: enrichedItems };
+    const orderPlacedAt = new Date();
+    const orderData = { contact, items: enrichedItems, deliveryDate: contact.deliveryDate, deliverySlot: contact.deliverySlot };
     const jsonNotes = JSON.stringify(orderData);
     const itemsNames = enrichedItems.map((i) => `${i.name} (${i.unit || ""}) x${i.quantity}`).join(", ");
 
+    // NOTE: requires `delivery_date` (DATE) and `delivery_slot` (VARCHAR) columns on cart_orders.
+    // Migration if missing:
+    //   ALTER TABLE cart_orders ADD COLUMN delivery_date DATE NULL, ADD COLUMN delivery_slot VARCHAR(50) NULL;
     const insertQuery = `
       INSERT INTO cart_orders 
-      (user_id, items_names, items_price, total_price, name, phone_number, alt_phone_num, building_name, landmark, street, pin_code, city_or_village, drop_address, notes, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+      (user_id, items_names, items_price, total_price, name, phone_number, alt_phone_num, building_name, landmark, street, pin_code, city_or_village, drop_address, delivery_date, delivery_slot, notes, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
     `;
 
     const [result] = await connection.query(insertQuery, [
       user_id, itemsNames, total_price, total_price, contact.fullName, contact.phone, contact.altPhone || null,
       contact.building || null, contact.landmark || null, contact.street || null, contact.postalCode || null,
-      contact.city || null, dropAddress, jsonNotes
+      contact.city || null, dropAddress, contact.deliveryDate || null, contact.deliverySlot || null, jsonNotes
     ]);
 
     if (saveAsDefault !== false && isNewAddress) {
@@ -258,7 +312,7 @@ router.post("/checkout", requireUser, async (req, res) => {
     await connection.commit();
     connection.release();
 
-    sendCheckoutEmail(total_price, contact, dropAddress, enrichedItems);
+    sendCheckoutEmail(total_price, contact, dropAddress, enrichedItems, contact.deliveryDate, contact.deliverySlot, formatOrderPlacedAt(orderPlacedAt));
     res.json({ success: true, order_id: result.insertId });
   } catch (err) {
     if (connection) {

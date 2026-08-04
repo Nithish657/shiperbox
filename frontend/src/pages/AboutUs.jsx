@@ -1,24 +1,33 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MobileBottomNav from "../mobile/MobileBottomNav";
+import MobileHeader from "../mobile/MobileHeader";
 import useIsDesktop from "../hooks/useIsDesktop";
 
 export default function AboutUs() {
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
+  const [headerHeight, setHeaderHeight] = useState(112);
+  const [search, setSearch] = useState("");
+
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+
+  const goSearch = () => {
+    if (search.trim() !== "") navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+  };
 
   const story = [
     {
       heading: "Bringing your everyday needs closer to home",
       paragraphs: [
-        "ShiperBox started with a simple observation: getting fresh vegetables, flowers for a special occasion, a custom garland made in time for a ceremony, or a package delivered across town shouldn't mean juggling five different apps, shops, and phone calls. We wanted one place that could handle all of it — reliably, quickly, and without the runaround.",
+        "Shiperbox started with a simple observation: getting fresh vegetables, flowers for a special occasion, a custom garland made in time for a ceremony, or a package delivered across town shouldn't mean juggling five different apps, shops, and phone calls. We wanted one place that could handle all of it — reliably, quickly, and without the runaround.",
         "Today, ShiperBox is a local-first platform built around the things people in our community actually need on a regular basis: fresh groceries, flowers, custom garlands for festivals and functions, and dependable courier and delivery services. We're not trying to be everything to everyone — we're trying to be genuinely useful for the handful of things that matter most in daily life.",
       ],
     },
     {
       heading: "How it started",
       paragraphs: [
-        "ShiperBox began as a small effort to solve a local problem. Vendors selling fresh vegetables and flowers had great produce but no easy way to reach customers beyond their immediate neighborhood. Customers, meanwhile, were stuck choosing between the inconvenience of visiting multiple shops or settling for less fresh options from generic delivery apps that treated groceries as an afterthought.",
+        "Shiperbox began as a small effort to solve a local problem. Vendors selling fresh vegetables and flowers had great produce but no easy way to reach customers beyond their immediate neighborhood. Customers, meanwhile, were stuck choosing between the inconvenience of visiting multiple shops or settling for less fresh options from generic delivery apps that treated groceries as an afterthought.",
         "We built ShiperBox to close that gap — to give local vendors a proper digital storefront, and to give customers a fast, honest way to get what they need without compromising on freshness or trust.",
         "From there, the platform grew naturally. Customers ordering flowers for weddings and festivals started asking for custom garlands — made to order, delivered on time, exactly as requested. So we added that. People needed small packages moved across town without waiting hours for a generalist courier service, so we built dedicated courier routes with transparent tracking. Every feature on ShiperBox exists because someone in our community actually asked for it.",
       ],
@@ -44,7 +53,7 @@ export default function AboutUs() {
     {
       heading: "Who we serve",
       paragraphs: [
-        "ShiperBox is built for people who want dependable, everyday services without friction — busy families ordering groceries for the week, someone arranging flowers for a last-minute occasion, a small business owner who needs a package couriered across town by afternoon, or a household preparing for a festival and needing a garland made exactly right. If that sounds like you, you're exactly who we built this for.",
+        "Shiperbox is built for people who want dependable, everyday services without friction — busy families ordering groceries for the week, someone arranging flowers for a last-minute occasion, a small business owner who needs a package couriered across town by afternoon, or a household preparing for a festival and needing a garland made exactly right. If that sounds like you, you're exactly who we built this for.",
       ],
     },
     {
@@ -64,13 +73,20 @@ export default function AboutUs() {
 
   return (
     <div style={{ ...styles.page, ...(isDesktop && styles.pageDesktop) }}>
+      <MobileHeader
+        searchValue={search}
+        setSearchValue={setSearch}
+        onSearch={goSearch}
+        showLogo={false}
+        showTitleBar
+        showBackButton={false}
+        title="About Us"
+        isLoggedIn={isLoggedIn}
+        onHeightChange={setHeaderHeight}
+      />
+      
       <div style={isDesktop ? styles.cardDesktop : undefined}>
-        <div style={{ ...styles.header, ...(isDesktop && styles.headerDesktop) }}>
-          <button style={styles.backBtn} onClick={() => navigate(-1)} aria-label="Go back">←</button>
-          <h2 style={styles.title}>About Us</h2>
-        </div>
-
-        <div style={{ ...styles.scrollArea, ...(isDesktop && styles.scrollAreaDesktop) }}>
+        <div style={{ ...styles.scrollArea, ...(isDesktop && styles.scrollAreaDesktop), paddingTop: isDesktop ? "24px" : `${headerHeight + 20}px` }}>
           <div style={styles.heroCard}>
             <h1 style={styles.brand}>ShiperBox</h1>
           </div>
@@ -96,11 +112,8 @@ const styles = {
   page: { backgroundColor: "#f5f7fa", minHeight: "100vh" },
   pageDesktop: { display: "flex", justifyContent: "center", backgroundColor: "#eef1f5", padding: "40px 20px", boxSizing: "border-box" },
   cardDesktop: { width: "100%", maxWidth: "640px", background: "#fff", borderRadius: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.08)", overflow: "hidden", height: "fit-content" },
-  header: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, display: "flex", alignItems: "center", padding: "15px 30px", background: "#8ec5fc", color: "#fff", gap: "12px" },
-  headerDesktop: { position: "static", borderRadius: "20px 20px 0 0" },
-  backBtn: { border: "none", background: "rgba(255,255,255,0.18)", color: "#fff", fontSize: "18px", cursor: "pointer", width: "34px", height: "34px", borderRadius: "10px" },
-  title: { margin: "0 0 0 140px", fontSize: "20px", fontWeight: "700" },
-  scrollArea: { padding: "96px 16px 95px" },
+  
+  scrollArea: { padding: "0 16px 95px" },
   scrollAreaDesktop: { padding: "24px" },
   heroCard: { background: "#8ec5fc", borderRadius: "18px", padding: "28px 20px", textAlign: "center", marginBottom: "18px", boxShadow: "0 10px 25px rgba(37,99,235,0.25)" },
   brand: { margin: 0, color: "#fff", fontSize: "26px", fontWeight: "800", letterSpacing: "-0.5px" },

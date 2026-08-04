@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       await axios.put(`${API_URL}/admin/update-item/${category}/${id}`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` }
       });
-      alert("Updated!");
+      // Removed alert("Updated!"); to prevent multiple popups during background auto-saves
       loadItems();
     } catch (err) { alert(err.response?.data?.message || "Update failed"); }
   };
@@ -371,8 +371,20 @@ export default function AdminDashboard() {
                     <img src={req.reference_image && req.reference_image.startsWith("http") ? req.reference_image : `${API_URL}/uploads/${req.reference_image}`} alt="Reference" style={garlandStyles.image} />
                     <div style={garlandStyles.cardBody}>
                       <div style={{ ...garlandStyles.badge, backgroundColor: badge.bg, color: badge.color }}>{req.approval_status || "pending"}</div>
-                      <p style={garlandStyles.row}><strong>Customer:</strong> {req.user_id}</p>
+                      <p style={garlandStyles.row}><strong>Customer ID:</strong> {req.user_id}</p>
                       <p style={garlandStyles.row}><strong>Needed by:</strong> {formatDate(req.needed_by)}</p>
+                      <hr style={{ margin: "10px 0", border: "0.5px solid #eee" }} />
+                      <p style={garlandStyles.row}><strong>Name:</strong> {req.name || "—"}</p>
+                      <p style={garlandStyles.row}><strong>Email:</strong> {req.email || "—"}</p>
+                      <p style={garlandStyles.row}><strong>Phone Number:</strong> {req.phone_number ? `+91 ${req.phone_number}` : "—"}</p>
+                      <p style={garlandStyles.row}><strong>Whatsapp Number:</strong> {req.alt_phone_num ? `+91 ${req.alt_phone_num}` : "—"}</p>
+                      <hr style={{ margin: "10px 0", border: "0.5px solid #eee" }} />
+                      <p style={garlandStyles.row}><strong>Delivery Address:</strong></p>
+                      <p style={{ ...garlandStyles.row, marginTop: "-4px" }}>
+                        {[req.building_name, req.street, req.landmark, req.city_or_village, req.state].filter(Boolean).join(", ")}
+                        {req.pin_code ? ` - ${req.pin_code}` : ""}
+                        {![req.building_name, req.street, req.landmark, req.city_or_village, req.state, req.pin_code].some(Boolean) && "—"}
+                      </p>
                       {req.notes && <p style={garlandStyles.notes}>{req.notes}</p>}
 
                       {req.approval_status === "pending" && (
@@ -430,8 +442,9 @@ export default function AdminDashboard() {
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "15px" }}>
                             <div style={{ flex: 1, minWidth: "200px" }}>
                               <p style={garlandStyles.row}><strong>Customer:</strong> {orderData.contact.fullName}</p>
-                              <p style={garlandStyles.row}><strong>Phone:</strong> +91 {orderData.contact.phone}</p>
-                              <p style={garlandStyles.row}><strong>Alt Phone:</strong> +91 {orderData.contact.altPhone}</p>
+                              <p style={garlandStyles.row}><strong>Mobile Number:</strong> +91 {orderData.contact.phone}</p>
+                              <p style={garlandStyles.row}><strong>Whatsapp Number:</strong> +91 {orderData.contact.altPhone}</p>
+                              <p style={garlandStyles.row}><strong>Needed By:</strong> {req.delivery_date ? formatDate(req.delivery_date) : (orderData.deliveryDate || "—")}{(req.delivery_slot || orderData.deliverySlot) ? `, ${req.delivery_slot || orderData.deliverySlot}` : ""}</p>
                             </div>
                             <div style={{ flex: 1, minWidth: "200px" }}>
                               <p style={garlandStyles.row}><strong>Address:</strong><br/>{req.drop_address}</p>
@@ -533,6 +546,10 @@ export default function AdminDashboard() {
                         <div style={{ flex: 1, minWidth: "200px" }}>
                           <p style={garlandStyles.row}><strong>Customer ID:</strong> {req.user_id}</p>
                           <p style={garlandStyles.row}><strong>Needed By:</strong> {formatDate(req.needed_by)}</p>
+                          <p style={garlandStyles.row}><strong>Name:</strong> {req.name || "—"}</p>
+                          <p style={garlandStyles.row}><strong>Email:</strong> {req.email || "—"}</p>
+                          <p style={garlandStyles.row}><strong>Phone Number:</strong> {req.phone_number ? `+91 ${req.phone_number}` : "—"}</p>
+                          <p style={garlandStyles.row}><strong>Whatsapp Number:</strong> {req.alt_phone_num ? `+91 ${req.alt_phone_num}` : "—"}</p>
                         </div>
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", marginBottom: "15px", background: "#f8f9fa", padding: "10px", borderRadius: "8px" }}>
@@ -541,6 +558,14 @@ export default function AdminDashboard() {
                         </div>
                         <div style={{ flex: 1, minWidth: "200px" }}>
                           <p style={{...garlandStyles.row, margin: 0}}><strong>Drop Address:</strong><br/>{req.drop_address}</p>
+                        </div>
+                        <div style={{ flex: 1, minWidth: "200px" }}>
+                          <p style={{...garlandStyles.row, margin: 0}}>
+                            <strong>Address on File:</strong><br/>
+                            {[req.building_name, req.street, req.landmark, req.city_or_village, req.state].filter(Boolean).join(", ")}
+                            {req.pin_code ? ` - ${req.pin_code}` : ""}
+                            {![req.building_name, req.street, req.landmark, req.city_or_village, req.state, req.pin_code].some(Boolean) && "—"}
+                          </p>
                         </div>
                       </div>
                       <p style={{ ...garlandStyles.notes, whiteSpace: "pre-wrap", background: "#fff9c4", padding: "10px", borderRadius: "8px", color: "#333" }}>

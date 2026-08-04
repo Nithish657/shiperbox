@@ -191,11 +191,17 @@ export default function SearchResults() {
           <div style={styles.grid}>
             {items.map((item) => {
               const cartItem = cartItems.find((c) => c.product_id === item.id && c.category === item.category);
+              const outOfStock = Number(item.stock) <= 0;
               
               return (
-                <div key={`${item.category}-${item.id}`} style={styles.card}>
+                <div key={`${item.category}-${item.id}`} style={outOfStock ? { ...styles.card, ...styles.cardOutOfStock } : styles.card}>
                   <div style={styles.imgWrapper}>
-                    <img src={getImageUrl(item.image, "150x150/cccccc/000000&text=No+Image")} alt={item.name} style={styles.image} />
+                    <img
+                      src={getImageUrl(item.image, "150x150/cccccc/000000&text=No+Image")}
+                      alt={item.name}
+                      style={outOfStock ? { ...styles.image, ...styles.imageOutOfStock } : styles.image}
+                    />
+                    {outOfStock && <div style={styles.outOfStockBadge}>Out of Stock</div>}
                   </div>
                   
                   <div style={styles.cardBody}>
@@ -206,7 +212,9 @@ export default function SearchResults() {
                     <div style={styles.bottomRow}>
                       <p style={styles.price}>₹{item.price}</p>
                       
-                      {cartItem && !isGuest ? (
+                      {outOfStock ? (
+                        <span style={styles.outOfStockText}>Out of Stock</span>
+                      ) : cartItem && !isGuest ? (
                         <div style={styles.qtyBox}>
                           <button style={styles.btn} onClick={() => updateQty(cartItem.id, "decrease")}>-</button>
                           <span style={styles.qty}>{cartItem.quantity}</span>
@@ -247,19 +255,28 @@ const styles = {
   content: { paddingTop: "130px", paddingLeft: "30px", paddingRight: "30px", paddingBottom: "40px", maxWidth: "1600px", margin: "0 auto" },
   pageTitle: { fontSize: "24px", fontWeight: "800", color: "#111", marginBottom: "25px" },
   empty: { textAlign: "center", marginTop: "40px", color: "#555" },
-  retryBtn: { marginTop: "10px", padding: "8px 20px", border: "none", borderRadius: "8px", background: "#2563eb", color: "#fff", fontWeight: "bold", cursor: "pointer" },
+  retryBtn: { marginTop: "10px", padding: "8px 20px", border: "none", borderRadius: "8px", background: "#8ec5fc", color: "#fff", fontWeight: "bold", cursor: "pointer" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "24px" },
   card: { background: "#fff", borderRadius: "14px", padding: "18px", display: "flex", flexDirection: "column", boxShadow: "0 2px 10px rgba(0,0,0,0.04)", transition: "transform 0.2s ease" },
-  imgWrapper: { width: "100%", height: "190px", overflow: "hidden", borderRadius: "10px", marginBottom: "16px", backgroundColor: "#f9f9f9", display: "flex", alignItems: "center", justifyContent: "center" },
+  imgWrapper: { width: "100%", height: "190px", overflow: "hidden", borderRadius: "10px", marginBottom: "16px", backgroundColor: "#f9f9f9", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" },
   image: { width: "100%", height: "100%", objectFit: "contain" },
+  cardOutOfStock: { opacity: 0.6 },
+  imageOutOfStock: { filter: "grayscale(1)" },
+  outOfStockBadge: {
+    position: "absolute", top: "8px", left: "8px",
+    backgroundColor: "rgba(0,0,0,0.75)", color: "#fff",
+    fontSize: "11px", fontWeight: "bold", padding: "4px 8px",
+    borderRadius: "6px", textTransform: "uppercase", letterSpacing: "0.3px"
+  },
+  outOfStockText: { fontSize: "14px", fontWeight: "bold", color: "#e53935" },
   cardBody: { display: "flex", flexDirection: "column", flex: 1 },
   name: { fontSize: "17px", fontWeight: "700", color: "#111", margin: "0 0 4px 0", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" },
   unitText: { fontSize: "14px", color: "#666", fontWeight: "500", marginBottom: "8px" },
   category: { fontSize: "13px", color: "#999", textTransform: "capitalize", margin: "0 0 16px 0" },
   bottomRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" },
   price: { fontSize: "20px", fontWeight: "800", color: "#111", margin: 0 },
-  addBtn: { width: "84px", height: "36px", border: "1.5px solid #2563eb", backgroundColor: "#eaf1fe", color: "#2563eb", borderRadius: "8px", fontWeight: "700", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", textTransform: "uppercase" },
-  qtyBox: { width: "84px", height: "36px", display: "flex", alignItems: "center", justifyContent: "space-between", background: GRADIENT, borderRadius: "8px", padding: "0 8px", boxSizing: "border-box" },
+  addBtn: { width: "84px", height: "36px", border: "1.5px solid #8ec5fc", backgroundColor: "#8ec5fc", color: "#ffffff", borderRadius: "8px", fontWeight: "700", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", textTransform: "uppercase" },
+  qtyBox: { width: "84px", height: "36px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#8ec5fc", borderRadius: "8px", padding: "0 8px", boxSizing: "border-box" },
   btn: { border: "none", background: "transparent", color: "#fff", fontWeight: "bold", cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center", width: "24px", height: "100%" },
   qty: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
   cartOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)", zIndex: 9998 },

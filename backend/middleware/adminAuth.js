@@ -16,23 +16,18 @@ function requireAdmin(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
+    // ignoreExpiration: true ensures the admin is never automatically logged out
+    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET, { ignoreExpiration: true });
+    
     if (payload.role !== "admin") {
       return res.status(403).json({ success: false, message: "Not authorized" });
     }
+    
     req.admin = payload;
     next();
   } catch (err) {
     console.error("Admin Token Error:", err.message);
-
-    // ---- TEMPORARY DEBUG - remove once diagnosed ----
-    const decoded = jwt.decode(token);
-    console.error("TEMP DEBUG [adminAuth.js] - unverified token payload:", decoded);
-    console.error("TEMP DEBUG [adminAuth.js] - ADMIN_JWT_SECRET is set:", !!process.env.ADMIN_JWT_SECRET);
-    console.error("TEMP DEBUG [adminAuth.js] - ADMIN_JWT_SECRET length:", (process.env.ADMIN_JWT_SECRET || "").length);
-    // ---- END TEMPORARY DEBUG ----
-
-    return res.status(401).json({ success: false, message: "Invalid or expired admin token" });
+    return res.status(401).json({ success: false, message: "Invalid admin token" });
   }
 }
 
