@@ -88,7 +88,7 @@ export default AdsSlider;
 const styles = {
   wrapper: {
     width: "100%",
-    height: "500px", // Keeps the container large
+    height: "450px", // Keeps the container large
     overflow: "hidden",
     position: "relative",
     background: "#8ec5fc",

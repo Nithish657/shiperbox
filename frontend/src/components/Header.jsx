@@ -495,7 +495,7 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
     setIsListening(false);
   };
 
-  const openWhatsAppSupport = () => window.open(`https://wa.me/916301912803?text=${encodeURIComponent("Hi, I need help with my ShiperBox order.")}`, "_blank");
+  const openWhatsAppSupport = () => window.open(`https://wa.me/916301912803?text=${encodeURIComponent("Hi, I need help with my Shiperbox order.")}`, "_blank");
 
   // --- CUSTOM SVG ICONS ---
   const SearchIcon = ({ size = 20, color = "#555" }) => (
@@ -598,7 +598,7 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
         <div style={styles.topRow}>
           
           <div style={styles.leftSection}>
-            <h2 style={styles.logo} onClick={() => navigate("/home")}>ShiperBox</h2>
+            <h2 style={styles.logo} onClick={() => navigate("/home")}>Shiperbox</h2>
 
             <div style={styles.locationContainer} onClick={() => setShowLocationModal(true)} title="Change Location">
               <div style={styles.deliveryTitle}>Delivery to</div>
@@ -917,7 +917,7 @@ const Header = forwardRef(function Header({ cartCount = 0, openCart }, ref) {
 export default Header;
 
 const styles = {
-  header: { position: "fixed", top: "0px", left: 0, right: 0, height: "130px", display: "flex", alignItems: "center", padding: "0 40px", backgroundColor:"#8ec5fc", borderBottom: "#8ec5fc", color: "#222", zIndex: 1000 },
+  header: { position: "fixed", top: "0px", left: 0, right: 0, height: "100px", display: "flex", alignItems: "center", padding: "0 40px", backgroundColor:"#8ec5fc", borderBottom: "#8ec5fc", color: "#222", zIndex: 1000 },
   topRow: { display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" },
   leftSection: { display: "flex", alignItems: "center", flex: 1, justifyContent: "flex-start", gap: "30px" },
   logo: { cursor: "pointer", fontSize: "40px", fontWeight: "900", color: "#ffffff", margin: 0, letterSpacing: "-0.5px", whiteSpace: "nowrap" },

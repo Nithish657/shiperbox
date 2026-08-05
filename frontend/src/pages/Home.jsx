@@ -103,7 +103,7 @@ export default function Home() {
     <div style={styles.page}>
       <Header ref={headerRef} cartCount={cartCount} openCart={() => setShowCart(true)} />
       
-      <div style={{ marginTop: "130px" }}>
+      <div style={{ marginTop: "100px" }}>
         <AdsSlider />
       </div>
 
