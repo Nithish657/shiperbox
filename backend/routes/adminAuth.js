@@ -169,10 +169,12 @@ router.post("/verify-otp", verifyLimiter, (req, res) => {
     return res.status(500).json({ success: false, message: "Admin login is not configured" });
   }
 
-  // Token is generated without an expiration time so it lasts indefinitely
+  // Token now expires after 7 days instead of lasting forever - a leaked
+  // token has a limited window instead of being valid indefinitely.
   const token = jwt.sign(
     { role: pending.adminRole, email: pending.adminEmail, id: Number(adminId) },
-    process.env.ADMIN_JWT_SECRET
+    process.env.ADMIN_JWT_SECRET,
+    { expiresIn: "7d" }
   );
 
   res.json({ success: true, token });

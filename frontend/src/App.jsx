@@ -7,6 +7,7 @@ import SearchResults from "./pages/SearchResults";
 import CategoryItems from "./pages/CategoryItems";
 import CustomGarland from "./pages/CustomGarland";
 import AdminGarlandReview from "./admin/AdminGarlandReview";
+import AdminCourierReview from "./admin/AdminCourierReview";
 import CourierOrder from "./pages/CourierOrder";
 import MyOrders from "./pages/MyOrders";
 import MyAddress from "./pages/MyAddress";
@@ -45,9 +46,25 @@ function App() {
 
         {/* Garland order flow */}
         <Route path="/garland" element={isMobile ? <MobileGarlandOrder /> : <CustomGarland />} />
-        <Route path="/admin/garland" element={<AdminGarlandReview />} />
+        <Route
+          path="/admin/garland"
+          element={
+            <ProtectedRoute>
+              <AdminGarlandReview />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/courier" element={isMobile ? <MobileCourierOrder /> : <CourierOrder />} />
+        <Route
+          path="/admin/courier"
+          element={
+            <ProtectedRoute>
+              <AdminCourierReview />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/custom-garland" element={<CustomGarland />} />
 
         {/* NEW: profile menu destinations */}

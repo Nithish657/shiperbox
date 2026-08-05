@@ -16,8 +16,7 @@ function requireAdmin(req, res, next) {
   }
 
   try {
-    // ignoreExpiration: true ensures the admin is never automatically logged out
-    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET, { ignoreExpiration: true });
+    const payload = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
     
     if (payload.role !== "admin") {
       return res.status(403).json({ success: false, message: "Not authorized" });
@@ -27,7 +26,7 @@ function requireAdmin(req, res, next) {
     next();
   } catch (err) {
     console.error("Admin Token Error:", err.message);
-    return res.status(401).json({ success: false, message: "Invalid admin token" });
+    return res.status(401).json({ success: false, message: "Invalid or expired admin token" });
   }
 }
 
