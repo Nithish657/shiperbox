@@ -60,7 +60,7 @@ function App() {
           path="/admin/courier"
           element={
             <ProtectedRoute>
-              <AdminCourierReview />
+              <Admincourierreview />
             </ProtectedRoute>
           }
         />
