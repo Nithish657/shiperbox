@@ -99,8 +99,8 @@ const Icons = {
 // ==========================================
 const CATEGORIES = [
   { key: "vegetables", label: "VEGETABLES", image: `${CATEGORY_IMG_BASE}/veggies.jpg`, path: "/category/vegetables", type: "tall" },
-  { key: "flowers", label: "FLOWER", image: `${CATEGORY_IMG_BASE}/flowers.jpg`, path: "/category/flowers", type: "flower" },
-  { key: "garland", label: "FLOWER GARLAND", image: `${CATEGORY_IMG_BASE}/flowergarland.jpg`, path: "/m-garland", type: "garland" },
+  { key: "flowers", label: "FLOWERS", image: `${CATEGORY_IMG_BASE}/flowers.jpg`, path: "/category/flowers", type: "flower" },
+  { key: "garland", label: "CUSTOM FLOWERS GARLAND", image: `${CATEGORY_IMG_BASE}/flowergarland.jpg`, path: "/m-garland", type: "garland" },
   { key: "courier", label: "1 DAY COURIER SERVICE", image: `${CATEGORY_IMG_BASE}/1daycor.jpg`, path: "/courier", type: "full" }
 ];
 
@@ -319,7 +319,7 @@ export default function MobileHome() {
 
               <div style={styles.brandLogoRow}>
                 <span style={styles.brandShiper}>Shiper</span>
-                <span style={styles.brandBox}>Box</span>
+                <span style={styles.brandBox}>box</span>
               </div>
 
               <p style={styles.brandTagline}>Flowers, Vegetables &amp; Garlands, delivered with love</p>
